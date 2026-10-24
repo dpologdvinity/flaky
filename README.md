@@ -1,5 +1,13 @@
 # flaky
 
+[![CI](https://github.com/dpologdvinity/flaky/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/dpologdvinity/flaky/actions/workflows/ci.yml)
+[![Release workflow](https://github.com/dpologdvinity/flaky/actions/workflows/release.yml/badge.svg)](https://github.com/dpologdvinity/flaky/actions/workflows/release.yml)
+[![Latest release](https://img.shields.io/github/v/release/dpologdvinity/flaky)](https://github.com/dpologdvinity/flaky/releases/latest)
+[![Minimum Go version](https://img.shields.io/github/go-mod/go-version/dpologdvinity/flaky?logo=go)](go.mod)
+[![License: MIT](https://img.shields.io/github/license/dpologdvinity/flaky)](LICENSE)
+[![Homebrew tap](https://img.shields.io/badge/Homebrew-tap-FBB040?logo=homebrew)](https://github.com/dpologdvinity/homebrew-tap/blob/master/Formula/flaky.rb)
+[![Release downloads](https://img.shields.io/github/downloads/dpologdvinity/flaky/total)](https://github.com/dpologdvinity/flaky/releases)
+
 `flaky` is an offline single-binary CLI tool that repeats a test command, parses standard JUnit XML reports, ranks intermittent failures, and bisects their statistical introduction along git first-parent history.
 
 ---
@@ -18,6 +26,8 @@
 ## Quickstart
 
 ### Installation
+
+Prebuilt binaries for Linux, macOS, and Windows are available in the [latest release](https://github.com/dpologdvinity/flaky/releases/latest).
 
 Install via Go:
 ```sh
@@ -52,9 +62,13 @@ flaky -n 20 --json -- gotestsum -- ./...
 flaky bisect pkg::test_a --runs 30 -- pytest tests/
 ```
 
+Use relative project paths in your command. Temporary workspaces isolate the working directory; commands can still access external files through absolute paths and symlinks.
+
 ---
 
 ## CLI Reference
+
+Use `flaky --help` for usage and `flaky --version` for the installed version. Flags belong before `--`; everything after it is passed to the test command.
 
 ### 1. Scan Mode (Default)
 ```
@@ -76,13 +90,13 @@ flaky bisect TEST-ID [--runs N] [--junit RELPATH] [--json] -- COMMAND [ARG...]
 
 | Flag | Default | Description |
 |---|---|---|
-| `TEST-ID` | Required | Canonical test ID (`classname::name` or `file::name`). |
-| `--runs` | `30` | Repetitions per sampled commit ($N \ge 30$). |
+| `TEST-ID` | Required | Canonical test ID (`classname::name`, then `file::name`, then `name`). |
+| `--runs` | `30` | Repetitions per sampled commit ($30 \le N \le 1000$). |
 | `--junit` | (Auto) | Relative path to fixed JUnit XML written within workspace. |
 | `--json` | `false` | Output structured JSON instead of formatted text. |
 | `--` | Required | Separator preceding the test command. |
 
-*Note: Parallelism is not supported in bisect mode to maintain linear git worktree isolation.*
+Bisect requires a clean tracked and untracked working tree. The oldest first-parent commit must classify as stable and `HEAD` as flaky, with the target test present at both. The search assumes one stable-to-flaky transition; rare flakes may be inconclusive at 30 runs. Bisect runs sequentially.
 
 ---
 
@@ -100,8 +114,19 @@ If your runner expects an explicit argument, `flaky` provides automated adapters
 | **cargo-nextest** | `flaky --junit target/nextest/default/junit.xml -- cargo nextest run` | Nextest writes relative to workspace via `.config/nextest.toml`. |
 | **Custom Script** | `flaky --junit reports/junit.xml -- ./test.sh` | Reads from the specified relative report path. |
 
+Jest requires `jest-junit` to be installed and enabled as a reporter. For nextest's default profile, enable JUnit in `.config/nextest.toml`:
+
+```toml
+[profile.default.junit]
+path = "junit.xml"
+```
+
+Nextest writes this to `target/nextest/default/junit.xml`, as passed to `--junit` above. If you select another profile, use that profile's report path.
+
 > [!IMPORTANT]
-> The JUnit report must remain strictly inside the temporary workspace and cannot be a symlink pointing to an outside file.
+> The JUnit report must remain inside the temporary workspace. Neither the report nor any part of its path may be a symlink.
+
+A nonzero command exit is accepted when it produces valid JUnit. Missing or malformed reports are execution errors; missing-report diagnostics include the final 8 KiB of combined command output.
 
 ---
 
@@ -110,7 +135,9 @@ If your runner expects an explicit argument, `flaky` provides automated adapters
 $$\text{Failure Rate} = \frac{\text{Failures}}{\text{Passes} + \text{Failures}}$$
 
 - Tests absent from a run or marked skipped do not enter the denominator.
+- Flaky tests rank first by descending failure rate, followed by consistently failing, passing, and skipped tests. The table's `MISS` column counts runs where a test was absent.
 - A test is classified as **flaky** only if both a pass and a failure are observed across runs.
+- During bisect, a skipped or missing target observation makes that commit inconclusive. A target absent from every run at a sampled commit exits 1.
 - **Wilson Score Interval (90% Confidence)**: Used during bisect to determine whether failure frequency indicates true flakiness:
   - **Stable**: Upper confidence bound $< 10\%$.
   - **Flaky**: Passes $> 0$, Failures $> 0$, and Lower confidence bound $> 10\%$.
@@ -123,7 +150,7 @@ $$\text{Failure Rate} = \frac{\text{Failures}}{\text{Passes} + \text{Failures}}$
 | Code | Meaning |
 |:---:|---|
 | `0` | Success / run completed normally. |
-| `1` | Target test ID absent from all sampled reports during bisect. |
+| `1` | Target test ID absent from every run at a sampled commit. |
 | `2` | Command line usage error, missing arguments, or execution failure. |
 | `3` | Inconclusive statistical sampling during bisect. |
 | `130` | Interrupted by signal (`SIGINT` / Ctrl-C); resources cleaned up. |
