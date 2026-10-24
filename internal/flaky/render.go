@@ -32,13 +32,17 @@ func RenderScan(w io.Writer, command []string, runs int, tests []Summary, jsonMo
 		return err
 	}
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(tw, "RATE\tFAIL/PASS\tMISS\tTEST")
+	if _, err := fmt.Fprintln(tw, "RATE\tFAIL/PASS\tMISS\tTEST"); err != nil {
+		return err
+	}
 	for _, s := range tests {
 		rate := "—"
 		if s.FailureRate != nil {
 			rate = fmt.Sprintf("%.1f%%", *s.FailureRate*100)
 		}
-		fmt.Fprintf(tw, "%s\t%d/%d\t%d\t%s\n", rate, s.Failures, s.Passes, s.Missing, s.ID)
+		if _, err := fmt.Fprintf(tw, "%s\t%d/%d\t%d\t%s\n", rate, s.Failures, s.Passes, s.Missing, s.ID); err != nil {
+			return err
+		}
 	}
 	if err := tw.Flush(); err != nil {
 		return err

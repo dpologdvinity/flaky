@@ -19,7 +19,9 @@ func TestBisect(t *testing.T) {
 			body = "#!/bin/sh\nif [ $((FLAKY_RUN_INDEX % 3)) -eq 0 ]; then printf '<testsuite><testcase classname=\"pkg\" name=\"x\"><failure>bad</failure></testcase></testsuite>' > \"$FLAKY_JUNIT_XML\"; else printf '<testsuite><testcase classname=\"pkg\" name=\"x\"/></testsuite>' > \"$FLAKY_JUNIT_XML\"; fi\n"
 		}
 		body = strings.Replace(body, "#!/bin/sh\n", "#!/bin/sh\ngit rev-parse --is-inside-work-tree >/dev/null || exit 4\n[ ! -e touched ] || exit 5\ntouch touched\n", 1)
-		os.WriteFile(script, []byte(body+"\n# revision "+string(rune('0'+i))+"\n"), 0755)
+		if err := os.WriteFile(script, []byte(body+"\n# revision "+string(rune('0'+i))+"\n"), 0755); err != nil {
+			t.Fatal(err)
+		}
 		env := append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_AUTHOR_NAME=Fixture", "GIT_AUTHOR_EMAIL=fixture@example.test", "GIT_COMMITTER_NAME=Fixture", "GIT_COMMITTER_EMAIL=fixture@example.test", "GIT_AUTHOR_DATE=2020-01-01T00:00:00Z", "GIT_COMMITTER_DATE=2020-01-01T00:00:00Z")
 		c := exec.Command("git", "-C", dir, "add", "fake.sh")
 		c.Env = env

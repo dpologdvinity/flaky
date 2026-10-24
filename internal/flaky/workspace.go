@@ -55,7 +55,7 @@ func CopyWorkspace(src string) (string, func(), error) {
 		}
 		out, err := os.OpenFile(target, os.O_CREATE|os.O_EXCL|os.O_WRONLY, info.Mode().Perm())
 		if err != nil {
-			in.Close()
+			_ = in.Close()
 			return err
 		}
 		_, copyErr := io.Copy(out, in)

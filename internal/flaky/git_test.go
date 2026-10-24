@@ -21,8 +21,12 @@ func fixtureRepo(t *testing.T) string {
 		}
 	}
 	for i := 0; i < 3; i++ {
-		os.WriteFile(filepath.Join(dir, "state"), []byte{byte('0' + i)}, 0644)
-		os.WriteFile(filepath.Join(dir, "fake.sh"), []byte("#!/bin/sh\nprintf '<testsuite><testcase classname=\"pkg\" name=\"x\"/></testsuite>' > \"$FLAKY_JUNIT_XML\"\n"), 0755)
+		if err := os.WriteFile(filepath.Join(dir, "state"), []byte{byte('0' + i)}, 0644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "fake.sh"), []byte("#!/bin/sh\nprintf '<testsuite><testcase classname=\"pkg\" name=\"x\"/></testsuite>' > \"$FLAKY_JUNIT_XML\"\n"), 0755); err != nil {
+			t.Fatal(err)
+		}
 		for _, args := range [][]string{{"-C", dir, "add", "."}, {"-C", dir, "commit", "-qm", "step"}} {
 			c := exec.Command("git", args...)
 			c.Env = env
@@ -53,7 +57,9 @@ func TestHistoryAndWorktree(t *testing.T) {
 	if err != nil || strings.Count(out, "\n") != 0 {
 		t.Fatal(out, err)
 	}
-	os.WriteFile(filepath.Join(dir, "dirty"), []byte("x"), 0644)
+	if err := os.WriteFile(filepath.Join(dir, "dirty"), []byte("x"), 0644); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := git(context.Background(), dir, "config", "status.showUntrackedFiles", "no"); err != nil {
 		t.Fatal(err)
 	}

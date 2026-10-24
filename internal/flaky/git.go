@@ -53,7 +53,9 @@ func WithWorktree(ctx context.Context, dir, hash string, fn func(string) error) 
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(parent)
+	defer func() {
+		_ = os.RemoveAll(parent)
+	}()
 	path := filepath.Join(parent, "work")
 	defer func() {
 		cleanupCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

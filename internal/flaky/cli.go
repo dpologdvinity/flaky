@@ -89,16 +89,16 @@ func parseArgs(args []string) (Options, error) {
 
 func Main(ctx context.Context, args []string, out, errOut io.Writer) int {
 	if len(args) == 1 && (args[0] == "--version" || args[0] == "-V") {
-		fmt.Fprintln(out, "flaky "+Version)
+		_, _ = fmt.Fprintln(out, "flaky "+Version)
 		return 0
 	}
 	if len(args) == 1 && (args[0] == "--help" || args[0] == "-h") {
-		fmt.Fprintln(out, "flaky [-n N] [--parallel P] [--junit RELPATH] [--json] -- COMMAND [ARG...]\nflaky bisect TEST-ID [--runs N] [--junit RELPATH] [--json] -- COMMAND [ARG...]")
+		_, _ = fmt.Fprintln(out, "flaky [-n N] [--parallel P] [--junit RELPATH] [--json] -- COMMAND [ARG...]\nflaky bisect TEST-ID [--runs N] [--junit RELPATH] [--json] -- COMMAND [ARG...]")
 		return 0
 	}
 	o, err := parseArgs(args)
 	if err != nil {
-		fmt.Fprintln(errOut, "flaky: "+err.Error())
+		_, _ = fmt.Fprintln(errOut, "flaky: "+err.Error())
 		return 2
 	}
 	return execute(ctx, o, out, errOut)

@@ -8,10 +8,18 @@ import (
 
 func TestCopyWorkspace(t *testing.T) {
 	src := t.TempDir()
-	os.Mkdir(filepath.Join(src, ".git"), 0700)
-	os.WriteFile(filepath.Join(src, ".git", "secret"), []byte("x"), 0600)
-	os.WriteFile(filepath.Join(src, "a"), []byte("ok"), 0600)
-	os.Symlink("a", filepath.Join(src, "link"))
+	if err := os.Mkdir(filepath.Join(src, ".git"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(src, ".git", "secret"), []byte("x"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(src, "a"), []byte("ok"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("a", filepath.Join(src, "link")); err != nil {
+		t.Fatal(err)
+	}
 	dst, clean, err := CopyWorkspace(src)
 	if err != nil {
 		t.Fatal(err)

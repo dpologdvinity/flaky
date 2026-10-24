@@ -11,7 +11,7 @@ import (
 func execute(ctx context.Context, o Options, out, errOut io.Writer) int {
 	dir, err := os.Getwd()
 	if err != nil {
-		fmt.Fprintln(errOut, "flaky:", err)
+		_, _ = fmt.Fprintln(errOut, "flaky:", err)
 		return 2
 	}
 	if o.Mode == "scan" {
@@ -37,7 +37,7 @@ func execute(ctx context.Context, o Options, out, errOut io.Writer) int {
 	if err == nil {
 		return 0
 	}
-	fmt.Fprintln(errOut, "flaky:", err)
+	_, _ = fmt.Fprintln(errOut, "flaky:", err)
 	if ctx.Err() != nil {
 		return 130
 	}

@@ -108,7 +108,9 @@ func runInWork(ctx context.Context, work string, command []string, junit string,
 	if err != nil {
 		return nil, fmt.Errorf("JUnit report missing at %s: %w; command: %s", report, err, strings.TrimSpace(string(output)))
 	}
-	defer data.Close()
+	defer func() {
+		_ = data.Close()
+	}()
 	cases, err := ParseJUnit(data)
 	if err != nil {
 		return nil, fmt.Errorf("invalid JUnit report: %w", err)
