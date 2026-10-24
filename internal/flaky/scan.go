@@ -33,7 +33,7 @@ func Scan(ctx context.Context, source string, command []string, junit string, n,
 					results <- result{index: i, err: ctx.Err()}
 					continue
 				}
-				cases, err := Run(ctx, source, command, junit)
+				cases, err := run(ctx, source, command, junit, i+1)
 				results <- result{index: i, cases: cases, err: err}
 			}
 		}()

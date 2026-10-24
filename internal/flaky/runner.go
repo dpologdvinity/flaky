@@ -6,10 +6,15 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
 func Run(ctx context.Context, source string, command []string, junit string) ([]Case, error) {
+	return run(ctx, source, command, junit, 1)
+}
+
+func run(ctx context.Context, source string, command []string, junit string, index int) ([]Case, error) {
 	work, clean, err := CopyWorkspace(source)
 	if err != nil {
 		return nil, err
@@ -24,7 +29,7 @@ func Run(ctx context.Context, source string, command []string, junit string) ([]
 	}
 	_ = os.Remove(report)
 	args := append([]string(nil), command[1:]...)
-	env := append(os.Environ(), "FLAKY_JUNIT_XML="+report)
+	env := append(os.Environ(), "FLAKY_JUNIT_XML="+report, "FLAKY_RUN_INDEX="+strconv.Itoa(index))
 	base := filepath.Base(command[0])
 	adapter := base
 	if base == "python" || base == "python3" {

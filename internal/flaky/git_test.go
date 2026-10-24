@@ -22,7 +22,8 @@ func fixtureRepo(t *testing.T) string {
 	}
 	for i := 0; i < 3; i++ {
 		os.WriteFile(filepath.Join(dir, "state"), []byte{byte('0' + i)}, 0644)
-		for _, args := range [][]string{{"-C", dir, "add", "state"}, {"-C", dir, "commit", "-qm", "step"}} {
+		os.WriteFile(filepath.Join(dir, "fake.sh"), []byte("#!/bin/sh\nprintf '<testsuite><testcase classname=\"pkg\" name=\"x\"/></testsuite>' > \"$FLAKY_JUNIT_XML\"\n"), 0755)
+		for _, args := range [][]string{{"-C", dir, "add", "."}, {"-C", dir, "commit", "-qm", "step"}} {
 			c := exec.Command("git", args...)
 			c.Env = env
 			if out, err := c.CombinedOutput(); err != nil {

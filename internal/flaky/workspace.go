@@ -25,8 +25,11 @@ func CopyWorkspace(src string) (string, func(), error) {
 		if rel == "." {
 			return nil
 		}
-		if d.Name() == ".git" && d.IsDir() {
-			return filepath.SkipDir
+		if d.Name() == ".git" {
+			if d.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
 		}
 		target := filepath.Join(dst, rel)
 		info, err := d.Info()
