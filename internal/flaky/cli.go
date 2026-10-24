@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"strconv"
 	"strings"
 )
 
@@ -90,6 +89,5 @@ func Main(ctx context.Context, args []string, out, errOut io.Writer) int {
 		fmt.Fprintln(errOut, "flaky: "+err.Error())
 		return 2
 	}
-	_ = strconv.Itoa
 	return execute(ctx, o, out, errOut)
 }

@@ -57,3 +57,31 @@ func RenderScan(w io.Writer, command []string, runs int, tests []Summary, jsonMo
 	}
 	return nil
 }
+
+func RenderBisect(w io.Writer, result BisectResult, jsonMode bool) error {
+	if jsonMode {
+		return json.NewEncoder(w).Encode(result)
+	}
+	if _, err := fmt.Fprintf(w, "BISECT  %s · %d runs/commit · threshold 10%% (Wilson 90%%)\n", result.TestID, result.RunsPerCommit); err != nil {
+		return err
+	}
+	var first, parent Observation
+	for _, o := range result.Observations {
+		if o.Commit == result.FirstCommit {
+			first = o
+		}
+		if result.ParentCommit != nil && o.Commit == *result.ParentCommit {
+			parent = o
+		}
+	}
+	if _, err := fmt.Fprintf(w, "FIRST   %.7s  %s\n", result.FirstCommit, first.Subject); err != nil {
+		return err
+	}
+	if result.ParentCommit != nil {
+		if _, err := fmt.Fprintf(w, "PARENT  %.7s  stable (%d/%d, %.1f%%–%.1f%%)\n", parent.Commit, parent.Failures, result.RunsPerCommit, parent.Lower*100, parent.Upper*100); err != nil {
+			return err
+		}
+	}
+	_, err := fmt.Fprintf(w, "FIRST   %.7s  flaky (%d/%d, %.1f%%–%.1f%%)\n", first.Commit, first.Failures, result.RunsPerCommit, first.Lower*100, first.Upper*100)
+	return err
+}
