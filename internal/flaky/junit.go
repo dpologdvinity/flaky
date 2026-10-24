@@ -67,12 +67,17 @@ func ParseJUnit(r io.Reader) ([]Case, error) {
 				c.Output = ""
 			} else if x.Failure != nil || x.Error != nil {
 				c.Status = "fail"
-				event := x.Failure
-				if event == nil {
-					event = x.Error
+				for _, event := range []*xmlEvent{x.Failure, x.Error} {
+					if event == nil {
+						continue
+					}
+					if c.Message == "" {
+						c.Message = strings.TrimSpace(event.Message)
+					}
+					if c.Output == "" {
+						c.Output = strings.TrimSpace(event.Body)
+					}
 				}
-				c.Message = strings.TrimSpace(event.Message)
-				c.Output = strings.TrimSpace(event.Body)
 				if c.Output == "" {
 					c.Output = c.Message
 				}

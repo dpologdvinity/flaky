@@ -99,9 +99,9 @@ Text output (UTF-8, tabs expanded by Go `tabwriter`, no color):
 
 ```
 FLAKY  20 runs · 2 tests · 1 flaky
-RATE     FAIL/PASS  MISS  TEST
-25.0%    5/15       0     pkg::test_a
-100.0%   20/0       0     pkg::test_b
+RATE    FAIL/PASS  MISS  TEST
+25.0%   5/15       0     pkg::test_a
+100.0%  20/0       0     pkg::test_b
 
 pkg::test_a
   fail: expected 1, got 2

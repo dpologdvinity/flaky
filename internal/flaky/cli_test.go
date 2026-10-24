@@ -14,6 +14,9 @@ func TestCLI(t *testing.T) {
 		{[]string{"bisect", "pkg::x", "--runs", "30", "--", "echo"}, "bisect", 30, 1, false},
 		{[]string{"-n", "0", "--", "echo"}, "", 0, 0, true},
 		{[]string{"echo"}, "", 0, 0, true},
+		{[]string{"--runs", "30", "--", "echo"}, "", 0, 0, true},
+		{[]string{"bisect", "pkg::x", "-n", "30", "--", "echo"}, "", 0, 0, true},
+		{[]string{"--junit", "../outside.xml", "--", "echo"}, "", 0, 0, true},
 	} {
 		o, err := parseArgs(tc.args)
 		if (err != nil) != tc.bad {

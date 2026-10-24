@@ -64,13 +64,14 @@ func run(ctx context.Context, source string, command []string, junit string, ind
 	cmd := exec.CommandContext(ctx, command[0], args...)
 	cmd.Dir = work
 	cmd.Env = env
+	configureProcess(cmd)
 	output, runErr := cmd.CombinedOutput()
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}
 	data, err := os.Open(report)
 	if err != nil {
-		return nil, fmt.Errorf("JUnit report missing at %s: %w; command: %s", junit, err, strings.TrimSpace(string(output)))
+		return nil, fmt.Errorf("JUnit report missing at %s: %w; command: %s", report, err, strings.TrimSpace(string(output)))
 	}
 	defer data.Close()
 	cases, err := ParseJUnit(data)

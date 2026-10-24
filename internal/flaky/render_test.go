@@ -13,7 +13,7 @@ func TestRenderScan(t *testing.T) {
 	if err := RenderScan(&b, []string{"fake"}, 2, s, false); err != nil {
 		t.Fatal(err)
 	}
-	for _, part := range []string{"FLAKY  2 runs · 1 tests · 1 flaky", "50.0%", "1/1", "pkg::x", "fail: bad", "pass: good"} {
+	for _, part := range []string{"FLAKY  2 runs · 1 test · 1 flaky", "50.0%", "1/1", "pkg::x", "fail: bad", "pass: good"} {
 		if !strings.Contains(b.String(), part) {
 			t.Fatalf("missing %q: %s", part, b.String())
 		}

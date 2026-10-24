@@ -20,3 +20,10 @@ func TestParseJUnit(t *testing.T) {
 		}
 	}
 }
+
+func TestParseJUnitPrefersErrorBody(t *testing.T) {
+	cases, err := ParseJUnit(strings.NewReader(`<testsuite><testcase name="x"><failure message="failure message"/><error>error trace</error></testcase></testsuite>`))
+	if err != nil || cases[0].Output != "error trace" {
+		t.Fatalf("%+v: %v", cases, err)
+	}
+}

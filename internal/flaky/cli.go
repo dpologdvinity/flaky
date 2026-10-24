@@ -6,7 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"strings"
+	"path/filepath"
 )
 
 const Version = "0.1.0"
@@ -54,6 +54,18 @@ func parseArgs(args []string) (Options, error) {
 	if err := fs.Parse(flags); err != nil {
 		return o, err
 	}
+	var modeErr error
+	fs.Visit(func(f *flag.Flag) {
+		if o.Mode == "scan" && f.Name == "runs" {
+			modeErr = errors.New("--runs is only valid for bisect")
+		}
+		if o.Mode == "bisect" && (f.Name == "n" || f.Name == "parallel") {
+			modeErr = fmt.Errorf("--%s is only valid for scan", f.Name)
+		}
+	})
+	if modeErr != nil {
+		return o, modeErr
+	}
 	if len(fs.Args()) > 0 {
 		return o, fmt.Errorf("unexpected argument: %s", fs.Args()[0])
 	}
@@ -69,7 +81,7 @@ func parseArgs(args []string) (Options, error) {
 	if o.Mode == "bisect" && (o.Runs < 30 || o.Parallel != 1) {
 		return o, errors.New("bisect requires --runs >= 30 and does not support --parallel")
 	}
-	if o.JUnit != "" && (strings.HasPrefix(o.JUnit, "/") || o.JUnit == ".." || strings.HasPrefix(o.JUnit, "../") || strings.Contains(o.JUnit, "/../")) {
+	if o.JUnit != "" && !filepath.IsLocal(o.JUnit) {
 		return o, errors.New("--junit must stay within the workspace")
 	}
 	return o, nil

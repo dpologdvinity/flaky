@@ -48,20 +48,22 @@ func History(ctx context.Context, dir string) ([]Commit, error) {
 	}
 	return commits, nil
 }
-func WithWorktree(ctx context.Context, dir, hash string, fn func(string) error) error {
+func WithWorktree(ctx context.Context, dir, hash string, fn func(string) error) (resultErr error) {
 	parent, err := os.MkdirTemp("", "flaky-bisect-")
 	if err != nil {
 		return err
 	}
 	defer os.RemoveAll(parent)
 	path := filepath.Join(parent, "work")
-	if _, err := git(ctx, dir, "worktree", "add", "--detach", path, hash); err != nil {
-		return err
-	}
 	defer func() {
 		cleanupCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-		_, _ = git(cleanupCtx, dir, "worktree", "remove", "--force", path)
+		if _, err := git(cleanupCtx, dir, "worktree", "remove", "--force", path); err != nil && resultErr == nil {
+			resultErr = err
+		}
 	}()
+	if _, err := git(ctx, dir, "worktree", "add", "--detach", path, hash); err != nil {
+		return err
+	}
 	return fn(path)
 }

@@ -24,7 +24,11 @@ func RenderScan(w io.Writer, command []string, runs int, tests []Summary, jsonMo
 			Flaky   int       `json:"flaky"`
 		}{Version, command, runs, tests, count})
 	}
-	if _, err := fmt.Fprintf(w, "FLAKY  %d runs · %d tests · %d flaky\n", runs, len(tests), count); err != nil {
+	testWord := "tests"
+	if len(tests) == 1 {
+		testWord = "test"
+	}
+	if _, err := fmt.Fprintf(w, "FLAKY  %d runs · %d %s · %d flaky\n", runs, len(tests), testWord, count); err != nil {
 		return err
 	}
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)

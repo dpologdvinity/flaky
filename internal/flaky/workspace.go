@@ -53,17 +53,21 @@ func CopyWorkspace(src string) (string, func(), error) {
 		if err != nil {
 			return err
 		}
-		defer in.Close()
 		out, err := os.OpenFile(target, os.O_CREATE|os.O_EXCL|os.O_WRONLY, info.Mode().Perm())
 		if err != nil {
+			in.Close()
 			return err
 		}
 		_, copyErr := io.Copy(out, in)
 		closeErr := out.Close()
+		readCloseErr := in.Close()
 		if copyErr != nil {
 			return copyErr
 		}
-		return closeErr
+		if closeErr != nil {
+			return closeErr
+		}
+		return readCloseErr
 	})
 	if err != nil {
 		clean()
