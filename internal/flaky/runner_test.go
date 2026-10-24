@@ -24,10 +24,12 @@ func TestRun(t *testing.T) {
 }
 func TestRunPytestAdapter(t *testing.T) {
 	dir := t.TempDir()
-	script := filepath.Join(dir, "pytest")
-	os.WriteFile(script, []byte("#!/bin/sh\ncase \"$1\" in --junitxml=*) p=${1#--junitxml=};; esac\nprintf '<testsuite><testcase name=\"x\"/></testsuite>' > \"$p\"\n"), 0755)
-	if _, err := Run(context.Background(), dir, []string{script}, ""); err != nil {
-		t.Fatal(err)
+	for _, name := range []string{"pytest", "pytest.exe"} {
+		script := filepath.Join(dir, name)
+		os.WriteFile(script, []byte("#!/bin/sh\ncase \"$1\" in --junitxml=*) p=${1#--junitxml=};; esac\nprintf '<testsuite><testcase name=\"x\"/></testsuite>' > \"$p\"\n"), 0755)
+		if _, err := Run(context.Background(), dir, []string{script}, ""); err != nil {
+			t.Fatal(name, err)
+		}
 	}
 }
 
@@ -66,5 +68,42 @@ func TestRunCancellationCleansWorkspace(t *testing.T) {
 	}
 	if _, err := os.Stat(path); !os.IsNotExist(err) {
 		t.Fatalf("workspace remains: %s: %v", path, err)
+	}
+}
+
+func TestRunRejectsSymlinkedReport(t *testing.T) {
+	dir := t.TempDir()
+	outside := t.TempDir()
+	if err := os.Symlink(outside, filepath.Join(dir, "reports")); err != nil {
+		t.Fatal(err)
+	}
+	protected := filepath.Join(outside, "report.xml")
+	if err := os.WriteFile(protected, []byte("protected"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Run(context.Background(), dir, []string{"true"}, "reports/report.xml"); err == nil {
+		t.Fatal("accepted symlinked report")
+	}
+	b, err := os.ReadFile(protected)
+	if err != nil || string(b) != "protected" {
+		t.Fatalf("external report changed: %q %v", b, err)
+	}
+}
+
+func TestRunKillsBackgroundChild(t *testing.T) {
+	dir := t.TempDir()
+	marker := filepath.Join(t.TempDir(), "survived")
+	t.Setenv("FLAKY_MARKER", marker)
+	script := filepath.Join(dir, "spawn.sh")
+	body := "#!/bin/sh\n(sleep 0.3; echo survived > \"$FLAKY_MARKER\") >/dev/null 2>&1 &\nprintf '<testsuite><testcase name=\"x\"/></testsuite>' > \"$FLAKY_JUNIT_XML\"\n"
+	if err := os.WriteFile(script, []byte(body), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Run(context.Background(), dir, []string{script}, "report.xml"); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(500 * time.Millisecond)
+	if _, err := os.Stat(marker); !os.IsNotExist(err) {
+		t.Fatalf("background child survived: %v", err)
 	}
 }

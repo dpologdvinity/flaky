@@ -89,3 +89,11 @@ func RenderBisect(w io.Writer, result BisectResult, jsonMode bool) error {
 	_, err := fmt.Fprintf(w, "FIRST   %.7s  flaky (%d/%d, %.1f%%–%.1f%%)\n", first.Commit, first.Failures, result.RunsPerCommit, first.Lower*100, first.Upper*100)
 	return err
 }
+
+func RenderInconclusive(w io.Writer, result BisectResult, observation Observation) error {
+	if _, err := fmt.Fprintf(w, "BISECT  %s · %d runs/commit · threshold 10%% (Wilson 90%%)\n", result.TestID, result.RunsPerCommit); err != nil {
+		return err
+	}
+	_, err := fmt.Fprintf(w, "INCONCLUSIVE %.7s (%d/%d, %.1f%%–%.1f%%)\n", observation.Commit, observation.Failures, result.RunsPerCommit, observation.Lower*100, observation.Upper*100)
+	return err
+}

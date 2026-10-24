@@ -20,7 +20,7 @@ Until a release is published, build from this checkout with `go build -o flaky .
 
 ## JUnit setup
 
-`flaky` passes a unique absolute report path as `FLAKY_JUNIT_XML` on every run. Use `--junit RELPATH` when your command writes a fixed relative file. It must stay within the disposable workspace.
+`flaky` passes a unique absolute report path as `FLAKY_JUNIT_XML` and a 1-based `FLAKY_RUN_INDEX` on every run. Use `--junit RELPATH` when your command writes a fixed relative file. It must stay within the disposable workspace and cannot pass through a symlink.
 
 | Runner | Example | How `flaky` finds XML |
 |---|---|---|

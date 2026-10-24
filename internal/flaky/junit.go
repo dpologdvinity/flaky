@@ -10,17 +10,17 @@ import (
 
 type Case struct{ ID, Status, Message, Output string }
 type xmlEvent struct {
+	XMLName xml.Name
 	Message string `xml:"message,attr"`
 	Body    string `xml:",chardata"`
 }
 type xmlCase struct {
-	Name    string    `xml:"name,attr"`
-	Class   string    `xml:"classname,attr"`
-	File    string    `xml:"file,attr"`
-	Failure *xmlEvent `xml:"failure"`
-	Error   *xmlEvent `xml:"error"`
-	Skipped *xmlEvent `xml:"skipped"`
-	Out     string    `xml:"system-out"`
+	Name    string     `xml:"name,attr"`
+	Class   string     `xml:"classname,attr"`
+	File    string     `xml:"file,attr"`
+	Skipped *xmlEvent  `xml:"skipped"`
+	Out     string     `xml:"system-out"`
+	Events  []xmlEvent `xml:",any"`
 }
 type xmlSuite struct {
 	XMLName xml.Name
@@ -29,13 +29,29 @@ type xmlSuite struct {
 }
 
 func ParseJUnit(r io.Reader) ([]Case, error) {
-	data, err := io.ReadAll(r)
-	if err != nil {
+	decoder := xml.NewDecoder(r)
+	var suite xmlSuite
+	if err := decoder.Decode(&suite); err != nil {
 		return nil, err
 	}
-	var suite xmlSuite
-	if err := xml.Unmarshal(data, &suite); err != nil {
-		return nil, err
+	for {
+		token, err := decoder.Token()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		if text, ok := token.(xml.CharData); ok && strings.TrimSpace(string(text)) == "" {
+			continue
+		}
+		if _, ok := token.(xml.Comment); ok {
+			continue
+		}
+		if _, ok := token.(xml.ProcInst); ok {
+			continue
+		}
+		return nil, errors.New("trailing content after JUnit report")
 	}
 	if suite.XMLName.Local != "testsuite" && suite.XMLName.Local != "testsuites" {
 		return nil, errors.New("JUnit root must be testsuite or testsuites")
@@ -61,27 +77,28 @@ func ParseJUnit(r io.Reader) ([]Case, error) {
 				return fmt.Errorf("duplicate JUnit testcase: %s", id)
 			}
 			seen[id] = true
-			c := Case{ID: id, Status: "pass", Output: capOutput(strings.TrimSpace(x.Out))}
-			if x.Skipped != nil {
-				c.Status = "skip"
-				c.Output = ""
-			} else if x.Failure != nil || x.Error != nil {
-				c.Status = "fail"
-				for _, event := range []*xmlEvent{x.Failure, x.Error} {
-					if event == nil {
-						continue
-					}
-					if c.Message == "" {
-						c.Message = strings.TrimSpace(event.Message)
-					}
-					if c.Output == "" {
-						c.Output = strings.TrimSpace(event.Body)
-					}
+			c := Case{ID: id, Status: "pass"}
+			for _, event := range x.Events {
+				if event.XMLName.Local != "failure" && event.XMLName.Local != "error" {
+					continue
 				}
+				c.Status = "fail"
+				if c.Message == "" {
+					c.Message = strings.TrimSpace(event.Message)
+				}
+				if c.Output == "" {
+					c.Output = strings.TrimSpace(event.Body)
+				}
+			}
+			if c.Status == "fail" {
 				if c.Output == "" {
 					c.Output = c.Message
 				}
 				c.Output = capOutput(c.Output)
+			} else if x.Skipped != nil {
+				c.Status = "skip"
+			} else {
+				c.Output = capOutput(strings.TrimSpace(x.Out))
 			}
 			out = append(out, c)
 		}

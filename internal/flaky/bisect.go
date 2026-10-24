@@ -50,16 +50,16 @@ func Bisect(ctx context.Context, dir, id string, command []string, junit string,
 		}
 		commit := history[index]
 		o := Observation{Commit: commit.Hash, Subject: commit.Subject}
-		err := WithWorktree(ctx, dir, commit.Hash, func(work string) error {
-			for i := 0; i < runs; i++ {
-				cases, e := run(ctx, work, command, junit, i+1)
+		seen := 0
+		for i := 0; i < runs; i++ {
+			err := WithWorktree(ctx, dir, commit.Hash, func(work string) error {
+				cases, e := runInWork(ctx, work, command, junit, i+1)
 				if e != nil {
 					return e
 				}
-				found := false
 				for _, c := range cases {
 					if c.ID == id {
-						found = true
+						seen++
 						switch c.Status {
 						case "pass":
 							o.Passes++
@@ -69,14 +69,14 @@ func Bisect(ctx context.Context, dir, id string, command []string, junit string,
 						break
 					}
 				}
-				if !found {
-					return MissingTestError{id}
-				}
+				return nil
+			})
+			if err != nil {
+				return o, err
 			}
-			return nil
-		})
-		if err != nil {
-			return o, err
+		}
+		if seen == 0 {
+			return o, MissingTestError{id}
 		}
 		o.Lower, o.Upper = Wilson(o.Failures, runs)
 		o.Classification = Classify(o.Failures, o.Passes, runs)

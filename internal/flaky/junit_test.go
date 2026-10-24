@@ -27,3 +27,20 @@ func TestParseJUnitPrefersErrorBody(t *testing.T) {
 		t.Fatalf("%+v: %v", cases, err)
 	}
 }
+
+func TestParseJUnitRejectsTrailingAndFailureWins(t *testing.T) {
+	if _, err := ParseJUnit(strings.NewReader(`<testsuite><testcase name="x"/></testsuite><broken>`)); err == nil {
+		t.Fatal("accepted trailing XML")
+	}
+	cases, err := ParseJUnit(strings.NewReader(`<testsuite><testcase name="x"><skipped/><system-out>pass text</system-out><failure>failure trace</failure></testcase></testsuite>`))
+	if err != nil || cases[0].Status != "fail" || cases[0].Output != "failure trace" {
+		t.Fatalf("%+v: %v", cases, err)
+	}
+}
+
+func TestParseJUnitFirstFailureBody(t *testing.T) {
+	cases, err := ParseJUnit(strings.NewReader(`<testsuite><testcase name="x"><error>first trace</error><failure>second trace</failure></testcase></testsuite><!-- okay -->`))
+	if err != nil || cases[0].Output != "first trace" {
+		t.Fatalf("%+v: %v", cases, err)
+	}
+}

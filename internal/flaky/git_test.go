@@ -54,6 +54,9 @@ func TestHistoryAndWorktree(t *testing.T) {
 		t.Fatal(out, err)
 	}
 	os.WriteFile(filepath.Join(dir, "dirty"), []byte("x"), 0644)
+	if _, err := git(context.Background(), dir, "config", "status.showUntrackedFiles", "no"); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := History(context.Background(), dir); err == nil {
 		t.Fatal("dirty accepted")
 	}

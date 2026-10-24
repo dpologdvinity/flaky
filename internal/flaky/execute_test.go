@@ -28,3 +28,15 @@ func TestRenderBisect(t *testing.T) {
 		t.Fatal(b.String())
 	}
 }
+
+func TestRenderInconclusive(t *testing.T) {
+	var b bytes.Buffer
+	r := BisectResult{TestID: "pkg::x", RunsPerCommit: 30}
+	o := Observation{Commit: "abcdef012345", Failures: 1, Lower: .006, Upper: .17}
+	if err := RenderInconclusive(&b, r, o); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(b.String(), "BISECT  pkg::x · 30 runs/commit") || !strings.Contains(b.String(), "INCONCLUSIVE abcdef0 (1/30, 0.6%–17.0%)") {
+		t.Fatal(b.String())
+	}
+}

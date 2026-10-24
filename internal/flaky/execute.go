@@ -24,6 +24,11 @@ func execute(ctx context.Context, o Options, out, errOut io.Writer) int {
 	} else {
 		result, e := Bisect(ctx, dir, o.TestID, o.Command, o.JUnit, o.Runs)
 		if e != nil {
+			var inconclusive InconclusiveError
+			if errors.As(e, &inconclusive) {
+				_ = RenderInconclusive(errOut, result, inconclusive.Observation)
+				return 3
+			}
 			err = e
 		} else {
 			err = RenderBisect(out, result, o.JSON)
@@ -39,10 +44,6 @@ func execute(ctx context.Context, o Options, out, errOut io.Writer) int {
 	var missing MissingTestError
 	if errors.As(err, &missing) {
 		return 1
-	}
-	var inconclusive InconclusiveError
-	if errors.As(err, &inconclusive) {
-		return 3
 	}
 	return 2
 }

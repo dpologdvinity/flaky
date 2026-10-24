@@ -40,7 +40,8 @@ commit. Errors are `flaky: MESSAGE` on stderr. Ctrl-C exits 130 after cleanup.
 
 ## 3. JUnit discovery and runners
 
-Every command receives `FLAKY_JUNIT_XML`, an absolute unique report path.
+Every command receives `FLAKY_JUNIT_XML`, an absolute unique report path, and
+`FLAKY_RUN_INDEX`, the 1-based run number within its scan or commit sample.
 The report is deleted before the run. Explicit `--junit RELPATH` points to a
 file the command writes in its workspace and takes precedence. With no flag:
 
@@ -124,11 +125,12 @@ in table order. Each entry has `id`, `passes`, `failures`, `skips`, `missing`,
 Require a git repository and a clean tracked/untracked working tree before
 bisect. Record `HEAD` and obtain `git rev-list --first-parent --reverse HEAD`.
 The oldest commit is a presumed stable anchor; `HEAD` must be classified
-flaky. Each sampled commit is checked out with `git worktree add --detach`
-under a temp parent and removed with `git worktree remove --force` after
-sampling, including on Ctrl-C. `flaky` never checks out or resets the user's
-branch. Test command runs in that disposable worktree. Git's own `.git`
-worktree metadata is temporary; no project source file is changed.
+flaky. Each run of a sampled commit gets a fresh checkout with `git worktree
+add --detach` under a temp parent and is removed with `git worktree remove
+--force` after that run, including on Ctrl-C. `flaky` never checks out or
+resets the user's branch. The test command runs in that disposable worktree,
+with Git metadata available. Git's own `.git` worktree metadata is temporary;
+no project source file is changed.
 
 For each commit, perform exactly N independent runs. Let `f` be failures and
 `p` passes for the target ID; skips/missing do not count. Require `p + f = N`
@@ -144,7 +146,9 @@ interval = [max(0,c-h), min(1,c+h)]
 ```
 
 Classify **stable** if upper bound `< 0.10`; **flaky** if `p > 0`, `f > 0`,
-and lower bound `> 0.10`; otherwise **inconclusive** (exit 3). At N=30,
+and lower bound `> 0.10`; otherwise **inconclusive** (exit 3). A target absent
+from every report at a sampled commit exits 1; partial absence is inconclusive.
+At N=30,
 0 failures is stable; a small nonzero failure count may be inconclusive.
 The oldest anchor must be stable and HEAD flaky. Binary search the first-parent
 list for the first flaky commit; if a midpoint is inconclusive, stop with exit

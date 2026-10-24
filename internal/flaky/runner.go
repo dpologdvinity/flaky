@@ -20,17 +20,48 @@ func run(ctx context.Context, source string, command []string, junit string, ind
 		return nil, err
 	}
 	defer clean()
-	report := filepath.Join(work, "flaky-junit.xml")
-	if junit != "" {
-		report = filepath.Join(work, junit)
+	return runInWork(ctx, work, command, junit, index)
+}
+
+func reportPath(work, junit string) (string, error) {
+	if junit == "" {
+		junit = "flaky-junit.xml"
+	}
+	if !filepath.IsLocal(junit) {
+		return "", fmt.Errorf("JUnit path must stay within workspace")
+	}
+	part := work
+	for _, component := range strings.Split(filepath.Clean(junit), string(os.PathSeparator)) {
+		part = filepath.Join(part, component)
+		info, err := os.Lstat(part)
+		if os.IsNotExist(err) {
+			continue
+		}
+		if err != nil {
+			return "", err
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			return "", fmt.Errorf("JUnit path contains symlink: %s", junit)
+		}
+	}
+	return filepath.Join(work, junit), nil
+}
+
+func runInWork(ctx context.Context, work string, command []string, junit string, index int) ([]Case, error) {
+	report, err := reportPath(work, junit)
+	if err != nil {
+		return nil, err
 	}
 	if err := os.MkdirAll(filepath.Dir(report), 0755); err != nil {
 		return nil, err
 	}
-	_ = os.Remove(report)
+	if err := os.Remove(report); err != nil && !os.IsNotExist(err) {
+		return nil, err
+	}
 	args := append([]string(nil), command[1:]...)
 	env := append(os.Environ(), "FLAKY_JUNIT_XML="+report, "FLAKY_RUN_INDEX="+strconv.Itoa(index))
-	base := filepath.Base(command[0])
+	base := strings.ToLower(filepath.Base(command[0]))
+	base = strings.TrimSuffix(strings.TrimSuffix(base, ".exe"), ".cmd")
 	adapter := base
 	if base == "python" || base == "python3" {
 		if len(args) >= 2 && args[0] == "-m" && args[1] == "pytest" {
@@ -66,8 +97,12 @@ func run(ctx context.Context, source string, command []string, junit string, ind
 	cmd.Env = env
 	configureProcess(cmd)
 	output, runErr := cmd.CombinedOutput()
+	finishProcess(cmd)
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
+	}
+	if _, err := reportPath(work, junit); err != nil {
+		return nil, err
 	}
 	data, err := os.Open(report)
 	if err != nil {

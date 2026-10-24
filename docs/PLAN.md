@@ -32,7 +32,7 @@
 ### Task 1: Repository contract
 **Files:** `go.mod`, `LICENSE`, `.git/info/exclude`, `docs/SPEC.md`, `docs/PLAN.md`.
 **Interfaces:** Consumes none. Produces module `github.com/dpologdvinity/flaky` and fixed source contract.
-- [ ] Verify branch is `main`, source repo is empty, and required local excludes exist.
+- [ ] Verify branch is `master`, source repo is empty, and required local excludes exist.
 - [ ] Add module, license, spec, and plan; run `go mod tidy` and inspect `git status`.
 - [ ] Commit `docs: define flaky v0.1 contract and plan`.
 
