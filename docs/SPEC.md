@@ -28,8 +28,9 @@ Flags precede `--`; command arguments follow it unchanged. `-n` defaults to
 20, `--parallel` to 1, and `--runs` to 30; all are positive integers. Bisect
 requires at least 30 runs, caps at 1000, and is sequential per commit.
 `--parallel` is scan only. `--junit` is a relative path within each disposable
-workspace and must not escape it. If absent, the runner adapter below sets the
-path. `--json` sends one JSON object to stdout, with no progress messages.
+workspace and must not escape it or pass through a symlink. If absent,
+supported runner adapters set the path; cargo-nextest and custom commands
+require it. `--json` sends one JSON object to stdout, with no progress messages.
 Help and version print `flaky 0.1.0` and usage, respectively. Invalid flags,
 missing `--`, empty command, or an unsupported runner with no `--junit` exit 2.
 
@@ -50,7 +51,7 @@ file the command writes in its workspace and takes precedence. With no flag:
 | `pytest` or `python -m pytest` | append `--junitxml=$FLAKY_JUNIT_XML` | env path |
 | `gotestsum` | append `--junitfile=$FLAKY_JUNIT_XML` before its `--` | env path |
 | `jest` / `npx jest` | set `JEST_JUNIT_OUTPUT_DIR` and `JEST_JUNIT_OUTPUT_NAME`; the project must already have `jest-junit` reporter installed/enabled | env path |
-| `cargo nextest run` | use configured `.config/nextest.toml` `[profile.default.junit] path = "junit.xml"` and `--junit target/nextest/default/junit.xml` | explicit path |
+| `cargo nextest run` | no automatic adapter; configure `.config/nextest.toml` `[profile.default.junit] path = "junit.xml"` and pass `--junit target/nextest/default/junit.xml` | explicit path |
 | other | require `--junit RELPATH`; command can use `FLAKY_JUNIT_XML` | explicit path |
 
 For jest, env variables are understood by jest-junit; Jest itself has no
@@ -178,16 +179,20 @@ and `INCONCLUSIVE HASH (F/N, LOW%–HIGH%)` to stderr.
 `cmd/flaky/main.go` owns process entry and signal exit; `internal/flaky/`
 owns CLI, JUnit parsing, workspace execution, statistics, rendering, and
 bisect. `docs/SPEC.md`, `docs/PLAN.md`, `README.md`, `LICENSE`, `go.mod`,
-`.goreleaser.yaml`, and `.github/workflows/ci.yml` are tracked. No reports,
-cache, or state are written to the source repo. `.git/info/exclude` locally
-ignores agent files listed in the request. Go module path is
+`.goreleaser.yaml`, `.github/workflows/ci.yml`, `.github/workflows/release.yml`,
+`ARCHITECTURE.md`, and `CONTRIBUTING.md` are tracked. No reports, cache, or
+state are written to the source repo. `.git/info/exclude` locally ignores agent
+files listed in the request. Go module path is
 `github.com/dpologdvinity/flaky`, Go 1.23 minimum, MIT © 2026 Kaitlyn
 Bassford. CI checks `gofmt -l .`, `go vet ./...`, and `go test ./...`.
 Release artifacts are GoReleaser single binaries for Linux, macOS, Windows,
-amd64/arm64 where supported; no automated publishing in this task.
+amd64/arm64 where supported. Pushing a `v*` tag publishes a GitHub release;
+the release workflow updates `dpologdvinity/homebrew-tap` when its token secret
+is configured.
 
 ## 8. Later
 
 Adaptive bisect sampling; merge-aware ancestry search; run retention and
 comparison; framework-specific test selection; automatic installation of
-JUnit reporters; CI-provider integrations; Homebrew formula; npm wrapper.
+JUnit reporters; CI-provider integrations; npm wrapper (the npm name is
+occupied).

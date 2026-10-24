@@ -17,7 +17,7 @@
 - All test commands in tests are fake scripts writing JUnit; never run a real project.
 - Bisect fixtures use `t.TempDir()`, fixed author/dates, and `GIT_CONFIG_GLOBAL=/dev/null`.
 - Never modify the user's repo; clean worktrees and child processes on cancellation.
-- Conventional commits, one per task; never push or tag.
+- Conventional commits, one per implementation task. Treat the published `v0.1.0` tag as immutable.
 
 ## Review Focus
 
@@ -117,7 +117,7 @@
 - [x] Commit `feat: expose bisect results and cancellation`.
 
 ### Task 12: Docs, CI and release
-**Files:** `README.md`, `.github/workflows/ci.yml`, `.goreleaser.yaml`.
+**Files:** `README.md`, `.github/workflows/ci.yml`, `.github/workflows/release.yml`, `.goreleaser.yaml`.
 **Interfaces:** User installation and runner recipes; no Go API.
 - [x] Document fake-command usage, runner setup, statistical limits, name check and comparison with pytest-flakefinder/CI vendors.
 - [x] Add CI with gofmt, vet, test and GoReleaser config; run `gofmt -l .`, `go vet ./...`, `go test ./...`.

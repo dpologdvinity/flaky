@@ -11,7 +11,7 @@
 - **Isolated Execution**: Commands run in isolated temporary copies of the repository; parallel scan workers never share filesystems or race on artifacts.
 - **Safe Git Bisect**: Samples first-parent history using temporary detached worktrees without resetting, modifying, or dirtying the active working branch.
 - **Statistical Rigor**: Uses 90% two-sided Wilson score confidence intervals to classify commits as stable, flaky, or inconclusive (exiting cleanly on ambiguity rather than guessing).
-- **Process Safety**: Gracefully terminates child process groups on timeout or Ctrl-C interrupt (exit code 130) with guaranteed workspace cleanup.
+- **Process Safety**: Terminates child process groups on Ctrl-C (exit code 130) and removes temporary workspaces.
 
 ---
 
@@ -22,6 +22,11 @@
 Install via Go:
 ```sh
 go install github.com/dpologdvinity/flaky/cmd/flaky@latest
+```
+
+Or install the Homebrew formula:
+```sh
+brew install dpologdvinity/tap/flaky
 ```
 
 Or build directly from source:
@@ -136,8 +141,10 @@ $$\text{Failure Rate} = \frac{\text{Failures}}{\text{Passes} + \text{Failures}}$
 
 ## How It Differs
 
-- **vs. `pytest-flakefinder`**: `flaky` supports any language or runner outputting JUnit XML, computes confidence intervals, displays diffs between failing and passing runs, and performs automated git bisection.
+- **vs. `pytest-flakefinder`**: `flaky` supports any language or runner outputting JUnit XML, computes confidence intervals, shows representative failure and passing output side by side, and performs automated git bisection.
 - **vs. Cloud CI Services (Trunk, BuildPulse)**: `flaky` is an offline local CLI that does not require cloud accounts, webhooks, or telemetry uploads.
+
+The npm package name `flaky` is already used by an unrelated UUID package, so this project does not publish an npm package. The GitHub repository and Homebrew tap use `dpologdvinity/flaky` and `dpologdvinity/tap/flaky` respectively.
 
 ---
 
