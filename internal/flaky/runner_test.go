@@ -51,9 +51,9 @@ func TestRunCancellationCleansWorkspace(t *testing.T) {
 	done := make(chan error, 1)
 	go func() { _, err := Run(ctx, dir, []string{script}, "report.xml"); done <- err }()
 	var path string
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 200; i++ {
 		b, err := os.ReadFile(marker)
-		if err == nil {
+		if err == nil && len(strings.TrimSpace(string(b))) > 0 {
 			path = strings.TrimSpace(string(b))
 			break
 		}
