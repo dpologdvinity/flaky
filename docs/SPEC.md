@@ -11,6 +11,9 @@ v0.1 contract; `docs/PLAN.md` is its implementation plan.
 - A command's nonzero exit is a valid test run if it produced parseable JUnit.
   A missing, empty, or malformed report is an infrastructure error, never a
   passing run. All temporary paths are removed on success, error, and signal.
+- Command launch errors are reported before looking for JUnit. Command stdout
+  and stderr are drained continuously; only the last 8 KiB of combined output
+  is retained for missing-report diagnostics, regardless of output volume.
 - JUnit is the input boundary. Runner specific conveniences locate its output;
   no framework output is parsed directly.
 - Only observed test cases are counted. A skipped case and an absent case are

@@ -2,12 +2,70 @@ package flaky
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 )
+
+func TestRunReportsLaunchError(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		run  func(context.Context, string, []string, string) ([]Case, error)
+	}{
+		{"scan", Run},
+		{"bisect", func(ctx context.Context, work string, command []string, junit string) ([]Case, error) {
+			return runInWork(ctx, work, command, junit, 1)
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			command := filepath.Join(dir, "missing-command")
+			_, err := tc.run(context.Background(), dir, []string{command}, "report.xml")
+			if !errors.Is(err, os.ErrNotExist) || !strings.Contains(err.Error(), command) || strings.Contains(err.Error(), "JUnit report") {
+				t.Fatalf("expected command launch error, got %v", err)
+			}
+		})
+	}
+}
+
+func TestRunBoundsCommandOutput(t *testing.T) {
+	for _, report := range []bool{false, true} {
+		name := "missing report"
+		if report {
+			name = "valid report"
+		}
+		t.Run(name, func(t *testing.T) {
+			dir := t.TempDir()
+			script := filepath.Join(dir, "noisy.sh")
+			body := "#!/bin/sh\nprintf 'old diagnostic\\n'\ni=0\nwhile [ \"$i\" -lt 10000 ]; do\nprintf '🌍'\ni=$((i+1))\ndone\nprintf 'final stdout\\n'\nprintf 'final stderr\\n' >&2\n"
+			if report {
+				body += "printf '<testsuite><testcase name=\"x\"/></testsuite>' > \"$FLAKY_JUNIT_XML\"\n"
+			}
+			body += "exit 1\n"
+			if err := os.WriteFile(script, []byte(body), 0755); err != nil {
+				t.Fatal(err)
+			}
+			cases, err := Run(context.Background(), dir, []string{script}, "report.xml")
+			if report {
+				if err != nil || len(cases) != 1 || cases[0].Status != "pass" {
+					t.Fatalf("%+v: %v", cases, err)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatal("missing report accepted")
+			}
+			message := err.Error()
+			if !utf8.ValidString(message) || len(message) > 9*1024 || strings.Contains(message, "old diagnostic") || !strings.Contains(message, "final stdout") || !strings.Contains(message, "final stderr") {
+				t.Fatalf("expected bounded diagnostic tail with both streams; got %d bytes", len(message))
+			}
+		})
+	}
+}
 
 func TestRun(t *testing.T) {
 	dir := t.TempDir()
