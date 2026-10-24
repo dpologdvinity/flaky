@@ -10,6 +10,24 @@ import (
 	"strings"
 )
 
+type commandOutput struct {
+	data [8192]byte
+	n    int
+}
+
+func (o *commandOutput) Write(p []byte) (int, error) {
+	size := len(p)
+	if size >= len(o.data) {
+		o.n = copy(o.data[:], p[size-len(o.data):])
+	} else {
+		if overflow := o.n + size - len(o.data); overflow > 0 {
+			o.n = copy(o.data[:], o.data[overflow:o.n])
+		}
+		o.n += copy(o.data[o.n:], p)
+	}
+	return size, nil
+}
+
 func Run(ctx context.Context, source string, command []string, junit string) ([]Case, error) {
 	return run(ctx, source, command, junit, 1)
 }
@@ -95,18 +113,27 @@ func runInWork(ctx context.Context, work string, command []string, junit string,
 	cmd := exec.CommandContext(ctx, command[0], args...)
 	cmd.Dir = work
 	cmd.Env = env
+	var output commandOutput
+	// os/exec serializes writes when stdout and stderr share one writer.
+	cmd.Stdout, cmd.Stderr = &output, &output
 	configureProcess(cmd)
-	output, runErr := cmd.CombinedOutput()
+	runErr := cmd.Run()
 	finishProcess(cmd)
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
+	}
+	if runErr != nil {
+		if _, ok := runErr.(*exec.ExitError); !ok {
+			return nil, fmt.Errorf("could not run %q: %w", command[0], runErr)
+		}
 	}
 	if _, err := reportPath(work, junit); err != nil {
 		return nil, err
 	}
 	data, err := os.Open(report)
 	if err != nil {
-		return nil, fmt.Errorf("JUnit report missing at %s: %w; command: %s", report, err, strings.TrimSpace(string(output)))
+		tail := strings.ToValidUTF8(string(output.data[:output.n]), "�")
+		return nil, fmt.Errorf("JUnit report missing at %s: %w; command output tail: %s", report, err, strings.TrimSpace(tail))
 	}
 	defer func() {
 		_ = data.Close()
@@ -114,11 +141,6 @@ func runInWork(ctx context.Context, work string, command []string, junit string,
 	cases, err := ParseJUnit(data)
 	if err != nil {
 		return nil, fmt.Errorf("invalid JUnit report: %w", err)
-	}
-	if runErr != nil {
-		if _, ok := runErr.(*exec.ExitError); !ok {
-			return nil, runErr
-		}
 	}
 	return cases, nil
 }
