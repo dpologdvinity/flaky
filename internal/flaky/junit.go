@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"unicode/utf8"
 )
 
 type Case struct{ ID, Status, Message, Output string }
@@ -119,7 +120,11 @@ func ParseJUnit(r io.Reader) ([]Case, error) {
 }
 func capOutput(s string) string {
 	if len(s) > 8192 {
-		return s[:8192]
+		idx := 8192
+		for idx > 0 && !utf8.RuneStart(s[idx]) {
+			idx--
+		}
+		return s[:idx]
 	}
 	return s
 }

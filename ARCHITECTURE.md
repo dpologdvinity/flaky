@@ -57,7 +57,7 @@ flowchart TD
 
 ### 3. Execution & Process Lifecycle (`internal/flaky/runner.go`, `process_unix.go`, `process_windows.go`)
 - **Environment Injection**: Injects `FLAKY_JUNIT_XML` (absolute unique target path) and `FLAKY_RUN_INDEX` (1-based iteration counter).
-- **Runner Adapters**: Auto-detects supported runners (`pytest`, `gotestsum`, `jest-junit`, `cargo-nextest`) and adjusts arguments or environment variables accordingly when explicit `--junit` is omitted.
+- **Runner Adapters**: Auto-detects supported runners (`pytest`, `gotestsum`, `jest-junit`) and adjusts arguments or environment variables accordingly when explicit `--junit` is omitted; runners like `cargo-nextest` write relative report paths passed via `--junit`.
 - **Process Group Isolation**:
   - Unix: Configures `Setpgid: true` and sends `SIGKILL` to `-pgid` on process cancellation.
   - Windows: Uses `taskkill /T /F /PID` to terminate the entire process tree.

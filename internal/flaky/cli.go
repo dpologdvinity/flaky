@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 )
 
-const Version = "0.1.0"
+var Version = "0.1.0"
 
 type Options struct {
 	Mode, TestID, JUnit string

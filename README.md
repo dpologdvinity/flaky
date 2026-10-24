@@ -58,7 +58,7 @@ flaky [-n N] [--parallel P] [--junit RELPATH] [--json] -- COMMAND [ARG...]
 
 | Flag | Default | Description |
 |---|---|---|
-| `-n`, `--runs` | `20` | Number of test repetitions ($1 \le N \le 1000$). |
+| `-n` | `20` | Number of test repetitions ($1 \le N \le 1000$). |
 | `--parallel` | `1` | Number of concurrent worker copies. |
 | `--junit` | (Auto) | Relative path to fixed JUnit XML written within workspace. |
 | `--json` | `false` | Output structured JSON instead of formatted text table. |
