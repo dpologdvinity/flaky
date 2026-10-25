@@ -38,7 +38,7 @@ func TestCopyWorkspace(t *testing.T) {
 	if x, err := os.Readlink(filepath.Join(dst, "link")); err != nil || x != "a" {
 		t.Fatal(x, err)
 	}
-	clean()
+	checkCleanup(t, clean)
 	if _, err := os.Stat(dst); !os.IsNotExist(err) {
 		t.Fatal("cleanup")
 	}
@@ -64,7 +64,7 @@ func TestCopyRejectsTemporaryDirectoryInsideSource(t *testing.T) {
 			}
 			_, clean, err := CopyWorkspace(src)
 			if clean != nil {
-				clean()
+				checkCleanup(t, clean)
 			}
 			if err == nil || !strings.Contains(err.Error(), "temporary directory") {
 				t.Fatalf("want unsafe temporary directory error, got %v", err)
@@ -97,7 +97,7 @@ func TestCopyReadOnlyDirectoriesAndCleanup(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { clean() })
+	t.Cleanup(func() { checkCleanup(t, clean) })
 	data, err := os.ReadFile(filepath.Join(dst, "fixture", "data"))
 	if err != nil || string(data) != "fixture" {
 		t.Fatalf("copy: %q %v", data, err)
@@ -106,7 +106,7 @@ func TestCopyReadOnlyDirectoriesAndCleanup(t *testing.T) {
 	if err != nil || info.Mode().Perm() != 0555 {
 		t.Fatalf("directory permissions: %v %v", info, err)
 	}
-	clean()
+	checkCleanup(t, clean)
 	if _, err := os.Stat(dst); !os.IsNotExist(err) {
 		t.Fatalf("workspace remains: %v", err)
 	}
@@ -125,7 +125,7 @@ func TestCleanupRemovesReadOnlyRunArtifacts(t *testing.T) {
 		t.Fatal(err)
 	}
 	locked := filepath.Join(dst, "locked")
-	t.Cleanup(func() { _ = os.Chmod(locked, 0700); clean() })
+	t.Cleanup(func() { _ = os.Chmod(locked, 0700); checkCleanup(t, clean) })
 	if err := os.Mkdir(locked, 0700); err != nil {
 		t.Fatal(err)
 	}
@@ -138,7 +138,7 @@ func TestCleanupRemovesReadOnlyRunArtifacts(t *testing.T) {
 	if err := os.Chmod(locked, 0000); err != nil {
 		t.Fatal(err)
 	}
-	clean()
+	checkCleanup(t, clean)
 	if _, err := os.Stat(dst); !os.IsNotExist(err) {
 		t.Fatalf("workspace remains: %v", err)
 	}
@@ -191,7 +191,7 @@ func TestCleanupPreservesExternalHardlinkPermissions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { clean() })
+	t.Cleanup(func() { checkCleanup(t, clean) })
 	if err := os.Link(executable, filepath.Join(dst, "cache")); err != nil {
 		t.Fatal(err)
 	}
@@ -217,9 +217,16 @@ func TestCopyRejectsTemporaryDirectoryInParentRepository(t *testing.T) {
 	}
 	_, clean, err := CopyWorkspace(filepath.Join(repo, "package"))
 	if clean != nil {
-		clean()
+		checkCleanup(t, clean)
 	}
 	if err == nil || !strings.Contains(err.Error(), "temporary directory") {
 		t.Fatalf("temporary writes inside parent repository accepted: %v", err)
+	}
+}
+
+func checkCleanup(t *testing.T, clean func() error) {
+	t.Helper()
+	if err := clean(); err != nil {
+		t.Errorf("workspace cleanup: %v", err)
 	}
 }

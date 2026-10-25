@@ -154,7 +154,9 @@ func TestWorktreeCancellationKillsCheckoutHook(t *testing.T) {
 		}
 	case <-time.After(2 * time.Second):
 		t.Error("checkout hook survived cancellation")
-		<-done
+		if err := <-done; err == nil {
+			t.Error("canceled checkout succeeded")
+		}
 	}
 	listed, err := git(context.Background(), dir, "worktree", "list", "--porcelain")
 	if err != nil || strings.Count(listed, "worktree ") != 1 {
