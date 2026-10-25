@@ -193,6 +193,17 @@ amd64/arm64 where supported. Pushing a `v*` tag publishes a GitHub release;
 the release workflow updates `dpologdvinity/homebrew-tap` when its token secret
 is configured.
 
+From v0.1.2, the release build job generates GitHub build provenance attestations
+for every `.tar.gz`, `.zip`, `.deb`, and `checksums.txt` asset using GitHub Actions
+OIDC and `actions/attest`. Only that job receives `id-token: write` and
+`attestations: write`; no signing-key secret is required. Before updating
+Homebrew, it downloads the published assets and verifies their signatures against
+this repository, release workflow, source tag, and commit, requiring GitHub-hosted
+runners. It also requires rejection of a modified checksum file. Users can
+verify downloads using `gh attestation verify` as documented in the README.
+Older releases remain unchanged. The curl installer retains SHA-256 verification;
+it does not require GitHub CLI or automatically verify attestations.
+
 Linux releases also include `.deb` packages for amd64 and arm64, installing
 `/usr/bin/flaky` and `/usr/share/doc/flaky/copyright`. The existing signed APT
 repository at `https://dpologdvinity.github.io/packages/apt/` imports published

@@ -74,6 +74,30 @@ cd flaky
 go build -o flaky ./cmd/flaky
 ```
 
+#### Verify release provenance
+
+Starting with v0.1.2, release archives, Debian packages, and `checksums.txt` have
+GitHub artifact attestations: cryptographic signatures linking their SHA-256
+digests to this repository's release workflow, source commit, and tag. No separate
+GPG key is needed. With a recent [GitHub CLI](https://cli.github.com/) authenticated
+using `gh auth login`, verify a downloaded artifact before extracting or installing it:
+
+```sh
+gh release download v0.1.2 --repo dpologdvinity/flaky --pattern 'flaky_0.1.2_linux_amd64.tar.gz'
+gh attestation verify flaky_0.1.2_linux_amd64.tar.gz \
+  --repo dpologdvinity/flaky \
+  --signer-workflow dpologdvinity/flaky/.github/workflows/release.yml \
+  --source-ref refs/tags/v0.1.2 \
+  --deny-self-hosted-runners
+```
+
+Replace the version and filename for your release and platform. Verification
+fails if the file was modified or lacks matching provenance. The release job
+verifies published assets and checks that a modified checksum file is rejected.
+Attestations establish build provenance; they do not guarantee bug-free software.
+The curl installer checks SHA-256 only; provenance verification is a separate
+manual step. APT uses its existing repository signature.
+
 ### Basic Commands
 
 ```sh

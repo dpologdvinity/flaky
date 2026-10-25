@@ -12,6 +12,10 @@ jobs:
   goreleaser:
     name: Publish Release
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -32,6 +36,41 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Attest release archives, packages, and checksums
+        id: attest
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-path: |
+            dist/*.tar.gz
+            dist/*.zip
+            dist/*.deb
+            dist/checksums.txt
+
+      - name: Verify published release attestations
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ATTESTATION_BUNDLE: ${{ steps.attest.outputs.bundle-path }}
+        run: |
+          download_dir=$(mktemp -d)
+          trap 'rm -rf "$download_dir"' EXIT
+          gh release download "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+            --dir "$download_dir" --pattern '*.tar.gz' --pattern '*.zip' \
+            --pattern '*.deb' --pattern 'checksums.txt'
+          verify() {
+            gh attestation verify "$1" --repo "$GITHUB_REPOSITORY" \
+              --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/release.yml" \
+              --source-ref "$GITHUB_REF" --source-digest "$GITHUB_SHA" \
+              --deny-self-hosted-runners --bundle "$ATTESTATION_BUNDLE"
+          }
+          for artifact in "$download_dir"/*; do
+            verify "$artifact"
+          done
+          printf '\ntampered\n' >> "$download_dir/checksums.txt"
+          if verify "$download_dir/checksums.txt"; then
+            echo 'Error: verification accepted a modified artifact' >&2
+            exit 1
+          fi
 
   homebrew:
     name: Update Homebrew Tap
