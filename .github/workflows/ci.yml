@@ -83,9 +83,25 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: Run GoReleaser snapshot build
+      - name: Build snapshot release and Debian packages
         uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
           version: '~> v2'
-          args: build --snapshot --clean
+          args: release --snapshot --clean
+
+      - name: Verify Debian packages
+        run: |
+          for arch in amd64 arm64; do
+            package=$(find dist -maxdepth 1 -name "flaky_*_${arch}.deb")
+            test -n "$package"
+            test "$(dpkg-deb -f "$package" Package)" = flaky
+            test "$(dpkg-deb -f "$package" Architecture)" = "$arch"
+            dpkg-deb --contents "$package" | grep -q './usr/bin/flaky$'
+          done
+
+      - name: Install native Debian package through APT
+        run: |
+          sudo apt-get install -y ./dist/flaky_*_amd64.deb
+          flaky --version
+          flaky --help

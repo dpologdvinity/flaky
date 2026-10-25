@@ -57,9 +57,15 @@ golangci-lint run
 Ensure GoReleaser and GitHub Action configurations remain valid:
 ```bash
 goreleaser check
-goreleaser build --snapshot --clean
+goreleaser release --snapshot --clean
 actionlint .github/workflows/*.yml
+shellcheck install.sh
 ```
+
+The snapshot includes Debian packages for amd64 and arm64. CI checks their
+metadata and installs the native package using APT on its disposable runner.
+Installer tests use fake releases in temporary directories; the package
+repository has its own signed-index tests with a disposable signing key.
 
 ---
 

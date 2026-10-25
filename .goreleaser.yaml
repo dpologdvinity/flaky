@@ -22,3 +22,17 @@ archives:
         formats: [zip]
 checksum:
   name_template: checksums.txt
+nfpms:
+  - package_name: flaky
+    file_name_template: "{{ .ConventionalFileName }}"
+    homepage: https://github.com/dpologdvinity/flaky
+    maintainer: Kaitlyn Bassford <kaitlynbassford@gmail.com>
+    description: Offline CLI to rank intermittent test failures and bisect their introduction
+    license: MIT
+    section: utils
+    priority: optional
+    formats: [deb]
+    suggests: [git]
+    contents:
+      - src: LICENSE
+        dst: /usr/share/doc/flaky/copyright

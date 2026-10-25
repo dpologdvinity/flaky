@@ -34,7 +34,7 @@ requires at least 30 runs, caps at 1000, and is sequential per commit.
 workspace and must not escape it or pass through a symlink. If absent,
 supported runner adapters set the path; cargo-nextest and custom commands
 require it. `--json` sends one JSON object to stdout, with no progress messages.
-Help and version print `flaky 0.1.0` and usage, respectively. Invalid flags,
+Version prints `flaky <version>` and help prints usage. Invalid flags,
 missing `--`, empty command, or an unsupported runner with no `--junit` exit 2.
 
 Exit codes: 0 = completed scan or bisect (even if failures were observed);
@@ -192,6 +192,17 @@ Release artifacts are GoReleaser single binaries for Linux, macOS, Windows,
 amd64/arm64 where supported. Pushing a `v*` tag publishes a GitHub release;
 the release workflow updates `dpologdvinity/homebrew-tap` when its token secret
 is configured.
+
+Linux releases also include `.deb` packages for amd64 and arm64, installing
+`/usr/bin/flaky` and `/usr/share/doc/flaky/copyright`. The existing signed APT
+repository at `https://dpologdvinity.github.io/packages/apt/` imports published
+packages hourly without changing its signing key or repository identity.
+
+`install.sh` installs the latest release on Linux/macOS amd64/arm64 after SHA-256
+verification. Its default destination is `$HOME/.local/bin`, overridable with
+`FLAKY_INSTALL_DIR`. Installation replaces the executable atomically only after
+verification and cleans temporary files on exit. See `docs/INSTALLATION.md` for
+the distribution design and acceptance checks.
 
 ## 8. Later
 

@@ -56,7 +56,7 @@ func TestMainExecuteScan(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("expected code 0 for json, got %d: %s", code, errOut.String())
 	}
-	if !strings.Contains(out.String(), `"version":"0.1.0"`) || !strings.Contains(out.String(), `"id":"pkg::x"`) {
+	if !strings.Contains(out.String(), `"version":"`+Version+`"`) || !strings.Contains(out.String(), `"id":"pkg::x"`) {
 		t.Fatalf("unexpected json output: %s", out.String())
 	}
 }
