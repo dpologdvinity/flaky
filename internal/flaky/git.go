@@ -2,8 +2,8 @@ package flaky
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -17,11 +17,16 @@ type Commit struct {
 
 func git(ctx context.Context, dir string, args ...string) (string, error) {
 	cmd := exec.CommandContext(ctx, "git", append([]string{"-C", dir}, args...)...)
+	configureProcess(cmd)
 	out, err := cmd.CombinedOutput()
+	finishProcess(cmd)
+	if errors.Is(err, exec.ErrWaitDelay) {
+		err = nil
+	}
 	if err != nil {
 		return "", fmt.Errorf("git %s: %s: %w", strings.Join(args, " "), strings.TrimSpace(string(out)), err)
 	}
-	return strings.TrimSpace(string(out)), nil
+	return strings.TrimSuffix(string(out), "\n"), nil
 }
 func History(ctx context.Context, dir string) ([]Commit, error) {
 	status, err := git(ctx, dir, "status", "--porcelain", "--untracked-files=all")
@@ -49,19 +54,24 @@ func History(ctx context.Context, dir string) ([]Commit, error) {
 	return commits, nil
 }
 func WithWorktree(ctx context.Context, dir, hash string, fn func(string) error) (resultErr error) {
-	parent, err := os.MkdirTemp("", "flaky-bisect-")
+	root, err := git(ctx, dir, "rev-parse", "--show-toplevel")
+	if err != nil {
+		return err
+	}
+	parent, err := workspaceTemp(root, "flaky-bisect-")
 	if err != nil {
 		return err
 	}
 	defer func() {
-		_ = os.RemoveAll(parent)
+		resultErr = errors.Join(resultErr, removeWorkspace(parent))
 	}()
 	path := filepath.Join(parent, "work")
 	defer func() {
 		cleanupCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-		if _, err := git(cleanupCtx, dir, "worktree", "remove", "--force", path); err != nil && resultErr == nil {
-			resultErr = err
+		resultErr = errors.Join(resultErr, writableWorkspace(path))
+		if _, err := git(cleanupCtx, dir, "worktree", "remove", "--force", path); err != nil {
+			resultErr = errors.Join(resultErr, err)
 		}
 	}()
 	if _, err := git(ctx, dir, "worktree", "add", "--detach", path, hash); err != nil {

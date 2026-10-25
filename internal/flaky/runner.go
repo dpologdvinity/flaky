@@ -2,6 +2,7 @@ package flaky
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -32,12 +33,12 @@ func Run(ctx context.Context, source string, command []string, junit string) ([]
 	return run(ctx, source, command, junit, 1)
 }
 
-func run(ctx context.Context, source string, command []string, junit string, index int) ([]Case, error) {
-	work, clean, err := CopyWorkspace(source)
+func run(ctx context.Context, source string, command []string, junit string, index int) (cases []Case, resultErr error) {
+	work, clean, err := copyWorkspace(ctx, source)
 	if err != nil {
 		return nil, err
 	}
-	defer clean()
+	defer func() { resultErr = errors.Join(resultErr, clean()) }()
 	return runInWork(ctx, work, command, junit, index)
 }
 
@@ -122,7 +123,8 @@ func runInWork(ctx context.Context, work string, command []string, junit string,
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}
-	if runErr != nil {
+	// ErrWaitDelay means successful exit with a descendant still holding a pipe.
+	if runErr != nil && !errors.Is(runErr, exec.ErrWaitDelay) {
 		if _, ok := runErr.(*exec.ExitError); !ok {
 			return nil, fmt.Errorf("could not run %q: %w", command[0], runErr)
 		}

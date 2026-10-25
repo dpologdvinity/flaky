@@ -171,3 +171,14 @@ func TestRunKillsBackgroundChild(t *testing.T) {
 		t.Fatalf("background child survived: %v", err)
 	}
 }
+
+func TestRunAcceptsReportWithInheritedBackgroundPipes(t *testing.T) {
+	dir := t.TempDir()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	body := "sleep 30 & printf '<testsuite><testcase name=\"x\"/></testsuite>' > \"$FLAKY_JUNIT_XML\""
+	cases, err := Run(ctx, dir, []string{"sh", "-c", body}, "report.xml")
+	if err != nil || len(cases) != 1 || cases[0].Status != "pass" {
+		t.Fatalf("valid report rejected: %+v %v", cases, err)
+	}
+}

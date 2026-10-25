@@ -2,15 +2,19 @@ package flaky
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
+	"time"
 )
 
 func fixtureRepo(t *testing.T) string {
 	t.Helper()
+	t.Setenv("GIT_CONFIG_GLOBAL", "/dev/null")
 	dir := t.TempDir()
 	env := append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_AUTHOR_NAME=Fixture", "GIT_AUTHOR_EMAIL=fixture@example.test", "GIT_COMMITTER_NAME=Fixture", "GIT_COMMITTER_EMAIL=fixture@example.test", "GIT_AUTHOR_DATE=2020-01-01T00:00:00Z", "GIT_COMMITTER_DATE=2020-01-01T00:00:00Z")
 	for _, args := range [][]string{{"init", "-q", dir}, {"-C", dir, "config", "user.name", "Fixture"}, {"-C", dir, "config", "user.email", "fixture@example.test"}} {
@@ -65,5 +69,121 @@ func TestHistoryAndWorktree(t *testing.T) {
 	}
 	if _, err := History(context.Background(), dir); err == nil {
 		t.Fatal("dirty accepted")
+	}
+}
+
+func TestWorktreeRejectsTemporaryDirectoryInsideRepository(t *testing.T) {
+	dir := fixtureRepo(t)
+	parent := filepath.Join(dir, "tmp")
+	if err := os.Mkdir(parent, 0700); err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"TMPDIR", "TMP", "TEMP"} {
+		t.Setenv(key, parent)
+	}
+	called := false
+	err := WithWorktree(context.Background(), dir, "HEAD", func(string) error { called = true; return nil })
+	if err == nil || !strings.Contains(err.Error(), "temporary directory") || called {
+		t.Fatalf("unsafe worktree ran: callback=%v, error=%v", called, err)
+	}
+	entries, err := os.ReadDir(parent)
+	if err != nil || len(entries) != 0 {
+		t.Fatalf("repository was modified: %v %v", entries, err)
+	}
+}
+
+func TestWorktreeCleansReadOnlyArtifacts(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Unix directory permissions")
+	}
+	dir := fixtureRepo(t)
+	var work string
+	err := WithWorktree(context.Background(), dir, "HEAD", func(path string) error {
+		work = path
+		locked := filepath.Join(path, "locked")
+		if err := os.Mkdir(locked, 0700); err != nil {
+			return err
+		}
+		if err := os.WriteFile(filepath.Join(locked, "file"), []byte("x"), 0444); err != nil {
+			return err
+		}
+		return os.Chmod(locked, 0000)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(work); !os.IsNotExist(err) {
+		t.Fatalf("worktree remains: %v", err)
+	}
+	listed, err := git(context.Background(), dir, "worktree", "list", "--porcelain")
+	if err != nil || strings.Count(listed, "worktree ") != 1 {
+		t.Fatalf("stale worktree: %s %v", listed, err)
+	}
+}
+
+func TestWorktreeCancellationKillsCheckoutHook(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Unix checkout hook")
+	}
+	dir := fixtureRepo(t)
+	marker := filepath.Join(t.TempDir(), "started")
+	t.Setenv("FLAKY_HOOK_MARKER", marker)
+	hook := "#!/bin/sh\nprintf started > \"$FLAKY_HOOK_MARKER\"\nsleep 10\n"
+	if err := os.WriteFile(filepath.Join(dir, ".git", "hooks", "post-checkout"), []byte(hook), 0755); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan error, 1)
+	go func() { done <- WithWorktree(ctx, dir, "HEAD", func(string) error { return nil }) }()
+	started := false
+	for i := 0; i < 200; i++ {
+		if _, err := os.Stat(marker); err == nil {
+			started = true
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	cancel()
+	if !started {
+		t.Error("checkout hook did not start")
+	}
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Error("canceled checkout succeeded")
+		}
+	case <-time.After(2 * time.Second):
+		t.Error("checkout hook survived cancellation")
+		if err := <-done; err == nil {
+			t.Error("canceled checkout succeeded")
+		}
+	}
+	listed, err := git(context.Background(), dir, "worktree", "list", "--porcelain")
+	if err != nil || strings.Count(listed, "worktree ") != 1 {
+		t.Fatalf("stale worktree: %s %v", listed, err)
+	}
+}
+
+func TestWorktreeReportsCleanupFailureAfterRunError(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Unix fake git command")
+	}
+	dir := fixtureRepo(t)
+	realGit, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	bin := t.TempDir()
+	script := "#!/bin/sh\ncase \"$*\" in *'worktree remove'*) echo 'injected cleanup failure' >&2; exit 42;; esac\nexec \"$FLAKY_REAL_GIT\" \"$@\"\n"
+	if err := os.WriteFile(filepath.Join(bin, "git"), []byte(script), 0755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("FLAKY_REAL_GIT", realGit)
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	runErr := errors.New("test execution failed")
+	err = WithWorktree(context.Background(), dir, "HEAD", func(string) error { return runErr })
+	if !errors.Is(err, runErr) || !strings.Contains(err.Error(), "injected cleanup failure") {
+		t.Fatalf("cleanup failure was hidden: %v", err)
 	}
 }
