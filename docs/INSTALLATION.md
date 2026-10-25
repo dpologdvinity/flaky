@@ -36,17 +36,17 @@ uses a new patch release; the existing v0.1.0 tag and artifacts stay immutable.
 
 ## Implementation plan
 
-- [ ] Add Debian packaging to `.goreleaser.yaml`; make CI generate and install
+- [x] Add Debian packaging to `.goreleaser.yaml`; make CI generate and install
   snapshot packages, checking amd64 and arm64 metadata.
-- [ ] Add `install.sh` with fake-release tests for supported platforms, checksum
+- [x] Add `install.sh` with fake-release tests for supported platforms, checksum
   failures, failed downloads, and preservation of an existing installation.
-- [ ] Extend `dpologdvinity/packages` with an independent Flaky updater, shared
+- [x] Extend `dpologdvinity/packages` with an independent Flaky updater, shared
   APT signing, and serialized publication; verify bad downloads cannot publish.
-- [ ] Document APT key setup, repository setup, curl installation, and supported
+- [x] Document APT key setup, repository setup, curl installation, and supported
   architectures. Update the installation badges and release specification.
-- [ ] Merge verified changes and publish v0.1.1 with Debian packages; run the
+- [x] Merge verified changes and publish v0.1.1 with Debian packages; run the
   repository updater and verify its signed public index.
-- [ ] Install through live APT and curl in disposable Debian/Ubuntu containers,
+- [x] Install through live APT and curl in disposable Debian/Ubuntu containers,
   run `flaky --version` and `flaky --help`, and verify published arm64 metadata.
 
 ## Acceptance
@@ -54,3 +54,19 @@ uses a new patch release; the existing v0.1.0 tag and artifacts stay immutable.
 The documented repository setup followed by `apt install flaky` succeeds with
 normal signature verification. The documented curl command installs a verified
 binary without root. CI exercises package generation and installer failures.
+
+## Verification (2026-10-25)
+
+- Flaky PR #3 passed lint, race tests, snapshot packaging, and native APT install.
+- Packages PR #1 passed signed-index fixture tests, including checksum and
+  architecture rejection, preservation of yonder packages, and idempotence.
+- Release v0.1.1 published both Debian architectures and updated Homebrew.
+- The APT updater and explicit Pages deployment succeeded. The public signed
+  index advertises Flaky 0.1.1 for amd64 and arm64.
+- Fresh Ubuntu 24.04 and Debian stable containers installed Flaky 0.1.1 through
+  the live APT repository using normal signature verification. A non-root user
+  in each container also installed it through the documented curl command.
+  Both methods passed `flaky --version` and `flaky --help`.
+- Published arm64 package checksum, Debian metadata, and AArch64 ELF format were
+  verified. Native macOS/arm64 execution was not available; installer fixtures
+  cover all four supported platform combinations.
