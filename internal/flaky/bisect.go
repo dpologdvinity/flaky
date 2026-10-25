@@ -3,6 +3,7 @@ package flaky
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 )
 
 type Observation struct {
@@ -43,6 +44,10 @@ func Bisect(ctx context.Context, dir, id string, command []string, junit string,
 	if len(history) < 2 {
 		return result, fmt.Errorf("bisect needs at least two commits")
 	}
+	prefix, err := git(ctx, dir, "rev-parse", "--show-prefix")
+	if err != nil {
+		return result, err
+	}
 	cache := map[int]Observation{}
 	sample := func(index int) (Observation, error) {
 		if o, ok := cache[index]; ok {
@@ -53,7 +58,15 @@ func Bisect(ctx context.Context, dir, id string, command []string, junit string,
 		seen := 0
 		for i := 0; i < runs; i++ {
 			err := WithWorktree(ctx, dir, commit.Hash, func(work string) error {
-				cases, e := runInWork(ctx, work, command, junit, i+1)
+				cwd, e := filepath.EvalSymlinks(filepath.Join(work, filepath.FromSlash(prefix)))
+				if e != nil {
+					return e
+				}
+				rel, e := filepath.Rel(work, cwd)
+				if e != nil || (rel != "." && !filepath.IsLocal(rel)) {
+					return fmt.Errorf("bisect working directory escapes workspace")
+				}
+				cases, e := runInWork(ctx, cwd, command, junit, i+1)
 				if e != nil {
 					return e
 				}

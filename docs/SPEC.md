@@ -14,6 +14,8 @@ v0.1 contract; `docs/PLAN.md` is its implementation plan.
 - Command launch errors are reported before looking for JUnit. Command stdout
   and stderr are drained continuously; only the last 8 KiB of combined output
   is retained for missing-report diagnostics, regardless of output volume.
+  Descendants retaining output pipes may delay completion by at most five
+  seconds after their parent exits; this is not a command launch failure.
 - JUnit is the input boundary. Runner specific conveniences locate its output;
   no framework output is parsed directly.
 - Only observed test cases are counted. A skipped case and an absent case are
@@ -142,6 +144,13 @@ add --detach` under a temp parent and is removed with `git worktree remove
 resets the user's branch. The test command runs in that disposable worktree,
 with Git metadata available. Git's own `.git` worktree metadata is temporary;
 no project source file is changed.
+
+Git commands use the same process-group cancellation and bounded output-pipe
+wait as test commands, so checkout hooks cannot keep bisect alive after Ctrl-C.
+
+When invoked from a repository subdirectory, the command and relative report
+path use that same subdirectory in each sampled worktree. A missing directory
+or a historical symlink resolving outside the worktree is an execution error.
 
 For each commit, perform exactly N independent runs. Let `f` be failures and
 `p` passes for the target ID; skips/missing do not count. Require `p + f = N`

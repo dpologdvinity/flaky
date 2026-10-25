@@ -79,3 +79,75 @@ func TestBisectInconclusiveAndMissing(t *testing.T) {
 		t.Fatalf("want inconclusive: %v", err)
 	}
 }
+
+func TestBisectFromSubdirectory(t *testing.T) {
+	for _, escape := range []bool{false, true} {
+		t.Run(map[bool]string{false: "directory", true: "historical outside symlink"}[escape], func(t *testing.T) {
+			dir := t.TempDir()
+			for key, value := range map[string]string{
+				"GIT_CONFIG_GLOBAL": "/dev/null", "GIT_AUTHOR_NAME": "Fixture", "GIT_AUTHOR_EMAIL": "fixture@example.test",
+				"GIT_COMMITTER_NAME": "Fixture", "GIT_COMMITTER_EMAIL": "fixture@example.test",
+				"GIT_AUTHOR_DATE": "2020-01-01T00:00:00Z", "GIT_COMMITTER_DATE": "2020-01-01T00:00:00Z",
+			} {
+				t.Setenv(key, value)
+			}
+			ctx := context.Background()
+			if _, err := git(ctx, dir, "init", "-q"); err != nil {
+				t.Fatal(err)
+			}
+			sub := filepath.Join(dir, "nested package")
+			outside := t.TempDir()
+			var err error
+			if escape {
+				err = os.Symlink(outside, sub)
+			} else {
+				err = os.Mkdir(sub, 0755)
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			for i, body := range []string{
+				"printf '<testsuite><testcase classname=\"pkg\" name=\"x\"/></testsuite>'",
+				"if [ $((FLAKY_RUN_INDEX % 3)) -eq 0 ]; then printf '<testsuite><testcase classname=\"pkg\" name=\"x\"><failure>bad</failure></testcase></testsuite>'; else printf '<testsuite><testcase classname=\"pkg\" name=\"x\"/></testsuite>'; fi",
+			} {
+				if escape && i == 1 {
+					if err := os.Remove(sub); err != nil {
+						t.Fatal(err)
+					}
+					if err := os.Mkdir(sub, 0755); err != nil {
+						t.Fatal(err)
+					}
+				}
+				script := "#!/bin/sh\n" + body + " > \"$FLAKY_JUNIT_XML\"\n"
+				if err := os.WriteFile(filepath.Join(sub, "fake.sh"), []byte(script), 0755); err != nil {
+					t.Fatal(err)
+				}
+				if _, err := git(ctx, dir, "add", "."); err != nil {
+					t.Fatal(err)
+				}
+				if _, err := git(ctx, dir, "commit", "-qm", []string{"stable", "flaky"}[i]); err != nil {
+					t.Fatal(err)
+				}
+			}
+			head, err := git(ctx, dir, "rev-parse", "HEAD")
+			if err != nil {
+				t.Fatal(err)
+			}
+			result, err := Bisect(ctx, sub, "pkg::x", []string{"./fake.sh"}, "reports/junit.xml", 30)
+			if escape {
+				if err == nil || !strings.Contains(err.Error(), "escapes workspace") {
+					t.Fatalf("unsafe historical working directory accepted: %v", err)
+				}
+				if _, err := os.Stat(filepath.Join(outside, "reports")); !os.IsNotExist(err) {
+					t.Fatalf("external directory modified: %v", err)
+				}
+			} else if err != nil || result.FirstCommit != head {
+				t.Fatalf("subdirectory bisect: first=%s, want=%s, err=%v", result.FirstCommit, head, err)
+			}
+			status, err := git(ctx, dir, "status", "--porcelain")
+			if err != nil || status != "" {
+				t.Fatalf("source changed: %q %v", status, err)
+			}
+		})
+	}
+}
