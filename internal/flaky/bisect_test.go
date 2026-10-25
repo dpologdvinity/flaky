@@ -95,7 +95,7 @@ func TestBisectFromSubdirectory(t *testing.T) {
 			if _, err := git(ctx, dir, "init", "-q"); err != nil {
 				t.Fatal(err)
 			}
-			sub := filepath.Join(dir, "nested package")
+			sub := filepath.Join(dir, " leading package ")
 			outside := t.TempDir()
 			var err error
 			if escape {

@@ -26,7 +26,7 @@ func git(ctx context.Context, dir string, args ...string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("git %s: %s: %w", strings.Join(args, " "), strings.TrimSpace(string(out)), err)
 	}
-	return strings.TrimSpace(string(out)), nil
+	return strings.TrimSuffix(string(out), "\n"), nil
 }
 func History(ctx context.Context, dir string) ([]Commit, error) {
 	status, err := git(ctx, dir, "status", "--porcelain", "--untracked-files=all")
