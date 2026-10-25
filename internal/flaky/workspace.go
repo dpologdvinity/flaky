@@ -19,6 +19,22 @@ func workspaceTemp(src, prefix string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	for ancestor := source; ; ancestor = filepath.Dir(ancestor) {
+		gitPath := filepath.Join(ancestor, ".git")
+		info, err := os.Stat(gitPath)
+		if err == nil && info.IsDir() {
+			_, err = os.Stat(filepath.Join(gitPath, "HEAD"))
+		}
+		if err == nil {
+			source = ancestor
+			break
+		} else if !os.IsNotExist(err) {
+			return "", err
+		}
+		if filepath.Dir(ancestor) == ancestor {
+			break
+		}
+	}
 	parent, err := filepath.EvalSymlinks(os.TempDir())
 	if err != nil {
 		return "", err
@@ -44,9 +60,6 @@ func writableWorkspace(path string) error {
 		}
 		if d.IsDir() {
 			return os.Chmod(path, 0700)
-		}
-		if d.Type().IsRegular() {
-			return os.Chmod(path, 0600)
 		}
 		return nil
 	})

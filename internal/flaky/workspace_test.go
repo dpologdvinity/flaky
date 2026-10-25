@@ -177,3 +177,49 @@ func TestFileCopyStopsOnCancellation(t *testing.T) {
 		t.Fatalf("copy continued after cancellation: %d bytes, %v", n, err)
 	}
 }
+
+func TestCleanupPreservesExternalHardlinkPermissions(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Unix file permissions")
+	}
+	src, outside := t.TempDir(), t.TempDir()
+	executable := filepath.Join(outside, "tool")
+	if err := os.WriteFile(executable, []byte("external"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	dst, clean, err := CopyWorkspace(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { clean() })
+	if err := os.Link(executable, filepath.Join(dst, "cache")); err != nil {
+		t.Fatal(err)
+	}
+	if err := clean(); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(executable)
+	if err != nil || info.Mode().Perm() != 0755 {
+		t.Fatalf("external hardlink permissions changed: %v %v", info, err)
+	}
+}
+
+func TestCopyRejectsTemporaryDirectoryInParentRepository(t *testing.T) {
+	repo := fixtureRepo(t)
+	for _, name := range []string{"package", "tmp"} {
+		if err := os.Mkdir(filepath.Join(repo, name), 0700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	parent := filepath.Join(repo, "tmp")
+	for _, key := range []string{"TMPDIR", "TMP", "TEMP"} {
+		t.Setenv(key, parent)
+	}
+	_, clean, err := CopyWorkspace(filepath.Join(repo, "package"))
+	if clean != nil {
+		clean()
+	}
+	if err == nil || !strings.Contains(err.Error(), "temporary directory") {
+		t.Fatalf("temporary writes inside parent repository accepted: %v", err)
+	}
+}
