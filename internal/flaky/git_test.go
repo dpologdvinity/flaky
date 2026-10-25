@@ -2,6 +2,7 @@ package flaky
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -161,5 +162,28 @@ func TestWorktreeCancellationKillsCheckoutHook(t *testing.T) {
 	listed, err := git(context.Background(), dir, "worktree", "list", "--porcelain")
 	if err != nil || strings.Count(listed, "worktree ") != 1 {
 		t.Fatalf("stale worktree: %s %v", listed, err)
+	}
+}
+
+func TestWorktreeReportsCleanupFailureAfterRunError(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Unix fake git command")
+	}
+	dir := fixtureRepo(t)
+	realGit, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	bin := t.TempDir()
+	script := "#!/bin/sh\ncase \"$*\" in *'worktree remove'*) echo 'injected cleanup failure' >&2; exit 42;; esac\nexec \"$FLAKY_REAL_GIT\" \"$@\"\n"
+	if err := os.WriteFile(filepath.Join(bin, "git"), []byte(script), 0755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("FLAKY_REAL_GIT", realGit)
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	runErr := errors.New("test execution failed")
+	err = WithWorktree(context.Background(), dir, "HEAD", func(string) error { return runErr })
+	if !errors.Is(err, runErr) || !strings.Contains(err.Error(), "injected cleanup failure") {
+		t.Fatalf("cleanup failure was hidden: %v", err)
 	}
 }

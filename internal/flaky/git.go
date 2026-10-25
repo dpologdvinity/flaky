@@ -70,8 +70,8 @@ func WithWorktree(ctx context.Context, dir, hash string, fn func(string) error) 
 		cleanupCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 		resultErr = errors.Join(resultErr, writableWorkspace(path))
-		if _, err := git(cleanupCtx, dir, "worktree", "remove", "--force", path); err != nil && resultErr == nil {
-			resultErr = err
+		if _, err := git(cleanupCtx, dir, "worktree", "remove", "--force", path); err != nil {
+			resultErr = errors.Join(resultErr, err)
 		}
 	}()
 	if _, err := git(ctx, dir, "worktree", "add", "--detach", path, hash); err != nil {
