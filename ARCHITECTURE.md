@@ -53,7 +53,8 @@ flowchart TD
 - Creates ephemeral copies of the source directory using `os.MkdirTemp()`.
 - Excludes `.git` and harness-specific temporary files to protect repository state and reduce disk overhead.
 - Preserves relative symlinks without dereferencing or copying contents outside the project tree.
-- Returns a dedicated cleanup callback (`func()`) guaranteeing filesystem cleanup even during cancellation or error recovery.
+- Copies observe cancellation between file reads and directory entries. Temporary directories must resolve outside the source tree.
+- Returns a cleanup callback (`func() error`) that makes owned files and directories writable without following symlinks, removes the workspace, and reports cleanup failures.
 
 ### 3. Execution & Process Lifecycle (`internal/flaky/runner.go`, `process_unix.go`, `process_windows.go`)
 - **Environment Injection**: Injects `FLAKY_JUNIT_XML` (absolute unique target path) and `FLAKY_RUN_INDEX` (1-based iteration counter).

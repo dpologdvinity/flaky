@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -65,5 +66,54 @@ func TestHistoryAndWorktree(t *testing.T) {
 	}
 	if _, err := History(context.Background(), dir); err == nil {
 		t.Fatal("dirty accepted")
+	}
+}
+
+func TestWorktreeRejectsTemporaryDirectoryInsideRepository(t *testing.T) {
+	dir := fixtureRepo(t)
+	parent := filepath.Join(dir, "tmp")
+	if err := os.Mkdir(parent, 0700); err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"TMPDIR", "TMP", "TEMP"} {
+		t.Setenv(key, parent)
+	}
+	called := false
+	err := WithWorktree(context.Background(), dir, "HEAD", func(string) error { called = true; return nil })
+	if err == nil || !strings.Contains(err.Error(), "temporary directory") || called {
+		t.Fatalf("unsafe worktree ran: callback=%v, error=%v", called, err)
+	}
+	entries, err := os.ReadDir(parent)
+	if err != nil || len(entries) != 0 {
+		t.Fatalf("repository was modified: %v %v", entries, err)
+	}
+}
+
+func TestWorktreeCleansReadOnlyArtifacts(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Unix directory permissions")
+	}
+	dir := fixtureRepo(t)
+	var work string
+	err := WithWorktree(context.Background(), dir, "HEAD", func(path string) error {
+		work = path
+		locked := filepath.Join(path, "locked")
+		if err := os.Mkdir(locked, 0700); err != nil {
+			return err
+		}
+		if err := os.WriteFile(filepath.Join(locked, "file"), []byte("x"), 0444); err != nil {
+			return err
+		}
+		return os.Chmod(locked, 0000)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(work); !os.IsNotExist(err) {
+		t.Fatalf("worktree remains: %v", err)
+	}
+	listed, err := git(context.Background(), dir, "worktree", "list", "--porcelain")
+	if err != nil || strings.Count(listed, "worktree ") != 1 {
+		t.Fatalf("stale worktree: %s %v", listed, err)
 	}
 }

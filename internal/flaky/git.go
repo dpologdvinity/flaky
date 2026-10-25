@@ -2,8 +2,8 @@ package flaky
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -49,17 +49,22 @@ func History(ctx context.Context, dir string) ([]Commit, error) {
 	return commits, nil
 }
 func WithWorktree(ctx context.Context, dir, hash string, fn func(string) error) (resultErr error) {
-	parent, err := os.MkdirTemp("", "flaky-bisect-")
+	root, err := git(ctx, dir, "rev-parse", "--show-toplevel")
+	if err != nil {
+		return err
+	}
+	parent, err := workspaceTemp(root, "flaky-bisect-")
 	if err != nil {
 		return err
 	}
 	defer func() {
-		_ = os.RemoveAll(parent)
+		resultErr = errors.Join(resultErr, removeWorkspace(parent))
 	}()
 	path := filepath.Join(parent, "work")
 	defer func() {
 		cleanupCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
+		resultErr = errors.Join(resultErr, writableWorkspace(path))
 		if _, err := git(cleanupCtx, dir, "worktree", "remove", "--force", path); err != nil && resultErr == nil {
 			resultErr = err
 		}

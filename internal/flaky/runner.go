@@ -2,6 +2,7 @@ package flaky
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -32,12 +33,12 @@ func Run(ctx context.Context, source string, command []string, junit string) ([]
 	return run(ctx, source, command, junit, 1)
 }
 
-func run(ctx context.Context, source string, command []string, junit string, index int) ([]Case, error) {
-	work, clean, err := CopyWorkspace(source)
+func run(ctx context.Context, source string, command []string, junit string, index int) (cases []Case, resultErr error) {
+	work, clean, err := copyWorkspace(ctx, source)
 	if err != nil {
 		return nil, err
 	}
-	defer clean()
+	defer func() { resultErr = errors.Join(resultErr, clean()) }()
 	return runInWork(ctx, work, command, junit, index)
 }
 

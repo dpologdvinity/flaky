@@ -100,6 +100,13 @@ parallel execution; aggregate in index order. `--parallel P` launches at most
 waits for them, and removes all copies. The source tree is never the cwd of a
 test command.
 
+The resolved system temporary directory must be outside the copied source
+directory (and outside the repository for bisect); an unsafe temporary location
+is rejected before creating a workspace. Copying checks cancellation while
+walking files and reading file contents. Directory permissions are restored
+after copying. Cleanup makes owned temporary files and directories writable
+without following symlinks, and cleanup failures are reported.
+
 Text output (UTF-8, tabs expanded by Go `tabwriter`, no color):
 
 ```
