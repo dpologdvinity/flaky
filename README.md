@@ -6,6 +6,7 @@
 [![Minimum Go version](https://img.shields.io/github/go-mod/go-version/dpologdvinity/flaky?logo=go)](go.mod)
 [![License: MIT](https://img.shields.io/github/license/dpologdvinity/flaky)](LICENSE)
 [![Homebrew tap](https://img.shields.io/badge/Homebrew-tap-FBB040?logo=homebrew)](https://github.com/dpologdvinity/homebrew-tap/blob/master/Formula/flaky.rb)
+[![APT repository](https://img.shields.io/badge/APT-repository-A81D33?logo=debian)](https://github.com/dpologdvinity/packages#debian--ubuntu)
 [![Release downloads](https://img.shields.io/github/downloads/dpologdvinity/flaky/total)](https://github.com/dpologdvinity/flaky/releases)
 
 `flaky` is an offline single-binary CLI tool that repeats a test command, parses standard JUnit XML reports, ranks intermittent failures, and bisects their statistical introduction along git first-parent history.
@@ -28,6 +29,33 @@
 ### Installation
 
 Prebuilt binaries for Linux, macOS, and Windows are available in the [latest release](https://github.com/dpologdvinity/flaky/releases/latest).
+
+#### Debian / Ubuntu (APT)
+
+Packages support amd64 and arm64. Add the signed repository once:
+
+```sh
+sudo install -d -m 0755 /etc/apt/keyrings
+curl -fsSL https://dpologdvinity.github.io/packages/yonder.gpg | sudo tee /etc/apt/keyrings/dpologdvinity.gpg >/dev/null
+sudo chmod 0644 /etc/apt/keyrings/dpologdvinity.gpg
+echo 'deb [signed-by=/etc/apt/keyrings/dpologdvinity.gpg] https://dpologdvinity.github.io/packages/apt/ ./' | sudo tee /etc/apt/sources.list.d/dpologdvinity.list
+sudo apt update
+sudo apt install flaky
+```
+
+This is the shared package repository used by yonder. If you already configured it, run only `sudo apt update && sudo apt install flaky`. The signing key fingerprint is `282804EB5779EA7EFFCF8308097AF7F74B2F93E5`. New releases are imported hourly.
+
+#### curl (Linux / macOS)
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/dpologdvinity/flaky/master/install.sh | sh
+export PATH="$HOME/.local/bin:$PATH"
+flaky --version
+```
+
+The installer detects amd64 or arm64, verifies the release archive's SHA-256 checksum, and installs to `~/.local/bin` without root. An existing binary is replaced only after verification. Set `FLAKY_INSTALL_DIR` to use another absolute directory. Requires curl, tar, and either sha256sum or shasum.
+
+#### Other installation options
 
 Install via Go:
 ```sh
