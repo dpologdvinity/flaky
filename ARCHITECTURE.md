@@ -71,7 +71,7 @@ flowchart TD
 - Extracts detailed failure bodies and system-out/err messages for comparative reporting.
 
 ### 5. Statistical Modeling & Classification (`internal/flaky/stats.go`)
-- **Wilson Score Interval**: Computes 90% confidence intervals for failure rates with continuity correction ($z \approx 1.6448536$):
+- **Wilson Score Interval**: Computes 90% confidence intervals for failure rates ($z \approx 1.6448536$):
   $$\tilde{p} = \frac{f + \frac{z^2}{2}}{n + z^2}, \quad w = \frac{z \sqrt{\frac{f(n-f)}{n} + \frac{z^2}{4}}}{n + z^2}$$
   $$\text{Interval} = [\max(0, \tilde{p} - w), \min(1, \tilde{p} + w)]$$
 - **Classification**:
