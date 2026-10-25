@@ -8,10 +8,12 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 )
 
 func fixtureRepo(t *testing.T) string {
 	t.Helper()
+	t.Setenv("GIT_CONFIG_GLOBAL", "/dev/null")
 	dir := t.TempDir()
 	env := append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_AUTHOR_NAME=Fixture", "GIT_AUTHOR_EMAIL=fixture@example.test", "GIT_COMMITTER_NAME=Fixture", "GIT_COMMITTER_EMAIL=fixture@example.test", "GIT_AUTHOR_DATE=2020-01-01T00:00:00Z", "GIT_COMMITTER_DATE=2020-01-01T00:00:00Z")
 	for _, args := range [][]string{{"init", "-q", dir}, {"-C", dir, "config", "user.name", "Fixture"}, {"-C", dir, "config", "user.email", "fixture@example.test"}} {
@@ -111,6 +113,48 @@ func TestWorktreeCleansReadOnlyArtifacts(t *testing.T) {
 	}
 	if _, err := os.Stat(work); !os.IsNotExist(err) {
 		t.Fatalf("worktree remains: %v", err)
+	}
+	listed, err := git(context.Background(), dir, "worktree", "list", "--porcelain")
+	if err != nil || strings.Count(listed, "worktree ") != 1 {
+		t.Fatalf("stale worktree: %s %v", listed, err)
+	}
+}
+
+func TestWorktreeCancellationKillsCheckoutHook(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Unix checkout hook")
+	}
+	dir := fixtureRepo(t)
+	marker := filepath.Join(t.TempDir(), "started")
+	t.Setenv("FLAKY_HOOK_MARKER", marker)
+	hook := "#!/bin/sh\nprintf started > \"$FLAKY_HOOK_MARKER\"\nsleep 10\n"
+	if err := os.WriteFile(filepath.Join(dir, ".git", "hooks", "post-checkout"), []byte(hook), 0755); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan error, 1)
+	go func() { done <- WithWorktree(ctx, dir, "HEAD", func(string) error { return nil }) }()
+	started := false
+	for i := 0; i < 200; i++ {
+		if _, err := os.Stat(marker); err == nil {
+			started = true
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	cancel()
+	if !started {
+		t.Error("checkout hook did not start")
+	}
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Error("canceled checkout succeeded")
+		}
+	case <-time.After(2 * time.Second):
+		t.Error("checkout hook survived cancellation")
+		<-done
 	}
 	listed, err := git(context.Background(), dir, "worktree", "list", "--porcelain")
 	if err != nil || strings.Count(listed, "worktree ") != 1 {

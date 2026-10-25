@@ -123,7 +123,8 @@ func runInWork(ctx context.Context, work string, command []string, junit string,
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}
-	if runErr != nil {
+	// ErrWaitDelay means successful exit with a descendant still holding a pipe.
+	if runErr != nil && !errors.Is(runErr, exec.ErrWaitDelay) {
 		if _, ok := runErr.(*exec.ExitError); !ok {
 			return nil, fmt.Errorf("could not run %q: %w", command[0], runErr)
 		}
