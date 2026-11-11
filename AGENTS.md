@@ -57,7 +57,7 @@ Run tests, vet and lint before declaring Go changes done.
   Personal overrides go in the git-ignored `.claude/settings.local.json`.
 - `.codex/config.toml` — enables the same `ponytail` plugin for Codex.
 - `.agents/skills/` — repo skills, each with Codex `agents/openai.yaml` metadata:
-  `lean-build` (scoped feature work), `surgical-patch` (narrow bug fixes with regression proof),
+  `surgical-patch` (narrow bug fixes with regression proof),
   `verify-and-stop` (validation without scope creep). `.claude/skills/*` are relative symlinks
   to these, so both agents share one copy.
 - Workflow: v0.1 was specified in `docs/SPEC.md`, planned as TDD checkbox tasks in
