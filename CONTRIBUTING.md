@@ -79,8 +79,9 @@ repository has its own signed-index tests with a disposable signing key.
 3. **Isolation & Safety**:
    - Test commands and bisect operations must never mutate the host repository.
    - Ephemeral workspaces and child processes must always be safely cleaned up, including on cancellation or signal interrupts.
-4. **Agent Harness Hygiene**:
-   - Do not commit agent-specific files (`CLAUDE.md`, `AGENTS.md`, `.claude/`, `.codex/`, `superpowers/`, etc.) into git history. Maintain local ignores in `.git/info/exclude`.
+4. **Agent Configuration**:
+   - Shared agent instructions live in `AGENTS.md` (`CLAUDE.md` imports it); shared agent config lives in `.claude/settings.json`, `.codex/config.toml`, and `.agents/skills/`.
+   - Keep personal or machine-specific settings in git-ignored `*.local.*` files, and never commit secrets.
 
 ---
 

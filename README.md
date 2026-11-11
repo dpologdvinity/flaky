@@ -215,6 +215,7 @@ $$\text{Failure Rate} = \frac{\text{Failures}}{\text{Passes} + \text{Failures}}$
 - [Contributing Guide](CONTRIBUTING.md): Local development setup, linter checks, and PR conventions.
 - [Technical Specification](docs/SPEC.md): Full behavioral contract and JSON schemas.
 - [Implementation Plan](docs/PLAN.md): Development milestone ledger.
+- [Agent Instructions](AGENTS.md): Commands, conventions, and coding-agent setup.
 
 ---
 
