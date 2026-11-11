@@ -1,0 +1,19 @@
+# Secrets and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials*.json
+
+# Machine-local overrides (personal settings, never shared)
+*.local.*
+CLAUDE.local.md
+.claude/settings.local.json
+
+# Build and test output
+/flaky
+/flaky.exe
+dist/
+coverage.out
+coverage.txt
