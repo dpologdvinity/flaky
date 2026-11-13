@@ -183,7 +183,7 @@ Bisect text output:
 BISECT  pkg::test_a · 30 runs/commit · threshold 10% (Wilson 90%)
 FIRST   abc1234  subject line
 PARENT  def5678  stable (0/30, 0.0%–8.3%)
-FIRST   abc1234  flaky (8/30, 14.2%–42.3%)
+FIRST   abc1234  flaky (8/30, 15.7%–41.5%)
 ```
 
 Full hashes are in JSON. JSON keys: `version`, `test_id`, `runs_per_commit`,
