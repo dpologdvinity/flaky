@@ -7,9 +7,28 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"runtime/debug"
+	"strings"
 )
 
-var Version = "0.1.1"
+// Version is set by GoReleaser via -X; `go install module@vX` builds fall back to the module version.
+var Version = "dev"
+
+func init() {
+	if Version == "dev" {
+		if v := moduleVersion(debug.ReadBuildInfo()); v != "" {
+			Version = v
+		}
+	}
+}
+
+// moduleVersion returns the main module's version without its "v" prefix, or "" for local builds.
+func moduleVersion(info *debug.BuildInfo, ok bool) string {
+	if !ok || info == nil || info.Main.Version == "" || info.Main.Version == "(devel)" {
+		return ""
+	}
+	return strings.TrimPrefix(info.Main.Version, "v")
+}
 
 type Options struct {
 	Mode, TestID, JUnit string
